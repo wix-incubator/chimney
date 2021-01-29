@@ -625,10 +625,21 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     } else {
       val overridesMapping = resolveOverrides(srcPrefixTree, From, targets, config)
       val notOverridenTargets = targets.diff(overridesMapping.keys.toSeq)
-      val accessorsMapping = resolveAccessorsMapping(From, notOverridenTargets, config)
 
-      resolveTransformerBodyTreeFromAccessorsMapping(srcPrefixTree, accessorsMapping, From, To, config)
-        .map(_ ++ overridesMapping)
+      def mkTransformer(From: Type, srcPrefixTree: Tree) = {
+        val accessorsMapping = resolveAccessorsMapping(From, notOverridenTargets, config)
+
+        resolveTransformerBodyTreeFromAccessorsMapping(srcPrefixTree, accessorsMapping, From, To, config)
+          .map(_ ++ overridesMapping)
+      }
+
+      /** Proto oneOf to sealed trait enum support
+       *  @see https://github.com/wix-private/server-infra/issues/14909
+       */
+      if (From.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof")))
+        mkTransformer(From.member(TermName("value")).typeSignature, q"$srcPrefixTree.value")
+      else
+        mkTransformer(From, srcPrefixTree)
     }
 
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
