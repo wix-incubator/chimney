@@ -32,7 +32,7 @@ jobs:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt
       - name: Set up ${{ matrix.jvm }}
-        uses: olafurpg/setup-scala@v5
+        uses: olafurpg/setup-scala@v10
         with:
           java-version: ${{ matrix.jvm }}
       - name: Clean, Check code formatting, compile, test, generate coverage report
