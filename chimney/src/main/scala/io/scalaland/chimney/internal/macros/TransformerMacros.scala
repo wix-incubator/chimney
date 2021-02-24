@@ -616,7 +616,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
 
-    val targets = To.caseClassParams.map(Target.fromField(_, To))
+    def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
+    def getOneofValue(t: Type) = if (isOneof(t)) t.member(TermName("value")).typeSignature else t
+
+    val targets = getOneofValue(To).caseClassParams.map(Target.fromField(_, getOneofValue(To)))
 
     val targetTransformerBodiesMapping = if (isTuple(From)) {
       resolveSourceTupleAccessors(From, To).flatMap { accessorsMapping =>
@@ -626,7 +629,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       val overridesMapping = resolveOverrides(srcPrefixTree, From, targets, config)
       val notOverridenTargets = targets.diff(overridesMapping.keys.toSeq)
 
-      def mkTransformer(From: Type, srcPrefixTree: Tree) = {
+      def mkTransformer(From: Type, srcPrefixTree: Tree, To: Type) = {
         val accessorsMapping = resolveAccessorsMapping(From, notOverridenTargets, config)
 
         resolveTransformerBodyTreeFromAccessorsMapping(srcPrefixTree, accessorsMapping, From, To, config)
@@ -636,17 +639,22 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       /** Proto oneOf to sealed trait enum support
        *  @see https://github.com/wix-private/server-infra/issues/14909
        */
-      if (From.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof")))
-        mkTransformer(From.member(TermName("value")).typeSignature, q"$srcPrefixTree.value")
+      if (isOneof(From))
+        mkTransformer(getOneofValue(From), q"$srcPrefixTree.value", To)
+      else if (isOneof(To))
+        mkTransformer(From, srcPrefixTree, getOneofValue(To))
       else
-        mkTransformer(From, srcPrefixTree)
+        mkTransformer(From, srcPrefixTree, To)
     }
 
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
-        mkNewClass(To, args)
+      mkTransformerBodyTree(getOneofValue(To), targets, bodyTreeArgs, config) { args =>
+        if (isOneof(To))
+          mkNewClass(To, Seq(mkNewClass(getOneofValue(To), args)))
+        else
+          mkNewClass(To, args)
       }
     }
   }

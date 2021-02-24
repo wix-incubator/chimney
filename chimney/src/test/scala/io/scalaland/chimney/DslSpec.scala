@@ -831,6 +831,20 @@ object DslSpec extends TestSuite {
         (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
           .transformInto[colorsnested2.Color] ==> colorsnested2.Blue(blueCode)
       }
+
+      "wrap case class (scalapb oneOf support)" - {
+        val redCode = "dc143c"
+        val redName = "crimson"
+//        val greenCode = "00ff00"
+//        val blueCode = "0000ff"
+
+        (colorsnested2.Red(redCode, redName): colorsnested2.Color)
+          .transformInto[colorsnested1.Color] ==> colorsnested1.Red(colorsnested1.RedInfo(redCode, redName))
+//        (colorsnested1.Green(colorsnested1.GreenInfo(greenCode)): colorsnested1.Color)
+//          .transformInto[colorsnested2.Color] ==> colorsnested2.Green(greenCode)
+//        (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
+//          .transformInto[colorsnested2.Color] ==> colorsnested2.Blue(blueCode)
+      }
     }
 
     "support polymorphic source/target objects and modifiers" - {
