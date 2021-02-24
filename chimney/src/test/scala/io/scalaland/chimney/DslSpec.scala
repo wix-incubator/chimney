@@ -3,6 +3,7 @@ package io.scalaland.chimney
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
 import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
+import io.scalaland.chimney.internal.OneofEmptyCaseException
 import utest._
 
 object DslSpec extends TestSuite {
@@ -818,33 +819,43 @@ object DslSpec extends TestSuite {
         )
       }
 
-      "unfold middle wrapper case class (scalapb oneOf support)" - {
-        val redCode = "dc143c"
-        val redName = "crimson"
-        val greenCode = "00ff00"
-        val blueCode = "0000ff"
+      "support scalapb-generated proto oneof" - {
+        "oneof -> sealed trait family" - {
+          val redCode = "dc143c"
+          val redName = "crimson"
+          val greenCode = "00ff00"
+          val blueCode = "0000ff"
 
-        (colorsnested1.Red(colorsnested1.RedInfo(redCode, redName)): colorsnested1.Color)
-          .transformInto[colorsnested2.Color] ==> colorsnested2.Red(redCode, redName)
-        (colorsnested1.Green(colorsnested1.GreenInfo(greenCode)): colorsnested1.Color)
-          .transformInto[colorsnested2.Color] ==> colorsnested2.Green(greenCode)
-        (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
-          .transformInto[colorsnested2.Color] ==> colorsnested2.Blue(blueCode)
+          (colorsnested1.Red(colorsnested1.RedInfo(redCode, redName)): colorsnested1.Color)
+            .transformInto[colorsnested2.Color] ==> colorsnested2.Red(redCode, redName)
+          (colorsnested1.Green(colorsnested1.GreenInfo(greenCode)): colorsnested1.Color)
+            .transformInto[colorsnested2.Color] ==> colorsnested2.Green(greenCode)
+          (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
+            .transformInto[colorsnested2.Color] ==> colorsnested2.Blue(blueCode)
+        }
+
+        "throw an exception if oneof Empty -> sealed trait family without Empty" - {
+          val ex = intercept[OneofEmptyCaseException]((colorsnested1.Empty: colorsnested1.Color).transformInto[colorsnested2.Color])
+
+          ex.sourceTypeName ==> colorsnested1.Empty.getClass.getName.stripSuffix("$")
+          ex.targetTypeName ==> classOf[colorsnested2.Color].getName
+        }
+
+        "sealed trait family -> oneof" - {
+          val redCode = "dc143c"
+          val redName = "crimson"
+          val greenCode = "00ff00"
+          val blueCode = "0000ff"
+
+          (colorsnested2.Red(redCode, redName): colorsnested2.Color)
+            .transformInto[colorsnested1.Color] ==> colorsnested1.Red(colorsnested1.RedInfo(redCode, redName))
+          (colorsnested2.Green(greenCode): colorsnested2.Color)
+            .transformInto[colorsnested1.Color] ==> colorsnested1.Green(colorsnested1.GreenInfo(greenCode))
+          (colorsnested2.Blue(blueCode): colorsnested2.Color)
+            .transformInto[colorsnested1.Color] ==> colorsnested1.Blue(colorsnested1.BlueInfo(blueCode))
+        }
       }
 
-      "wrap case class (scalapb oneOf support)" - {
-        val redCode = "dc143c"
-        val redName = "crimson"
-//        val greenCode = "00ff00"
-//        val blueCode = "0000ff"
-
-        (colorsnested2.Red(redCode, redName): colorsnested2.Color)
-          .transformInto[colorsnested1.Color] ==> colorsnested1.Red(colorsnested1.RedInfo(redCode, redName))
-//        (colorsnested1.Green(colorsnested1.GreenInfo(greenCode)): colorsnested1.Color)
-//          .transformInto[colorsnested2.Color] ==> colorsnested2.Green(greenCode)
-//        (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
-//          .transformInto[colorsnested2.Color] ==> colorsnested2.Blue(blueCode)
-      }
     }
 
     "support polymorphic source/target objects and modifiers" - {

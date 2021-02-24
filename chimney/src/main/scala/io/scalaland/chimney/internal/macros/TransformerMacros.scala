@@ -504,6 +504,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             .map { instanceTree =>
               Right(cq"_: $instTpe => $instanceTree")
             }
+            .orElse {
+              if (isOneof(instTpe) && instName == oneofEmptyInstanceName) {
+                Some(Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.OneofEmptyCaseException(${instTpe.typeSymbol.fullName}, ${To.typeSymbol.fullName})"))
+              }
+              else None
+            }
             .getOrElse {
               val instSymbol = instTpe.typeSymbol
               targetNamedInstances.getOrElse(instName.toLowerCase, Nil) match {
@@ -616,7 +622,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
 
-    def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
     def getOneofValue(t: Type) = if (isOneof(t)) t.member(TermName("value")).typeSignature else t
 
     val targets = getOneofValue(To).caseClassParams.map(Target.fromField(_, getOneofValue(To)))
@@ -906,4 +911,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private def isEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
   private val enumUnrecognizedInstanceName: String = "Unrecognized"
+
+  private def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
+  private val oneofEmptyInstanceName: String = "Empty"
 }

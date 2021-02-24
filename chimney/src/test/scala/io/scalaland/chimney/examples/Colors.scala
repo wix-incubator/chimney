@@ -41,6 +41,7 @@ package colorsnested1 {
   case class Red(value: RedInfo) extends Color
   case class Green(value: GreenInfo) extends Color
   case class Blue(value: BlueInfo) extends Color
+  case object Empty extends Color
 
   case class RedInfo(code: String, name: String)
   case class GreenInfo(code: String)
