@@ -526,14 +526,18 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                     )
                   }
                 case _ =>
-                  Left {
-                    Seq(
-                      CantFindCoproductInstanceTransformer(
-                        instSymbol.fullName,
-                        From.typeSymbol.fullName,
-                        To.typeSymbol.fullName
+                  if (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass)
+                    Right(cq"_: ${instSymbol.asType} => throw _root_.io.scalaland.chimney.internal.EnumUnrecognizedInstanceException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
+                  else {
+                    Left {
+                      Seq(
+                        CantFindCoproductInstanceTransformer(
+                          instSymbol.fullName,
+                          From.typeSymbol.fullName,
+                          To.typeSymbol.fullName
+                        )
                       )
-                    )
+                    }
                   }
               }
             }
@@ -878,4 +882,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   }
 
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"
+
+  private def isEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
+  private val enumUnrecognizedInstanceName: String = "Unrecognized"
 }

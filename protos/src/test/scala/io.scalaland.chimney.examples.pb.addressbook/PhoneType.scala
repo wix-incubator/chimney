@@ -5,7 +5,11 @@
 
 package io.scalaland.chimney.examples.pb.addressbook
 
-sealed trait PhoneType {
+package scalapb {
+  trait GeneratedEnum
+}
+
+sealed trait PhoneType extends scalapb.GeneratedEnum {
   type EnumType = PhoneType
   def isMobile: _root_.scala.Boolean = false
   def isHome: _root_.scala.Boolean = false
