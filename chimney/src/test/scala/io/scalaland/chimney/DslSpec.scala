@@ -713,6 +713,11 @@ object DslSpec extends TestSuite {
           (colors3.Blue: colors3.Color).transformInto[colors2.Color] ==> colors2.Blue
           (colors3.Black: colors3.Color).transformInto[colors2.Color] ==> colors2.Black
         }
+
+        "transforming enum ignoring case" - {
+          (colors2.Red: colors2.Color).transformInto[colors4.Color] ==> colors4.RED
+          (colors4.BLACK: colors4.Color).transformInto[colors2.Color] ==> colors2.Black
+        }
       }
 
       "transforming non-isomorphic domains" - {

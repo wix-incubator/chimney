@@ -491,7 +491,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         val fromInstances = fromCS.subclasses.map(_.typeInSealedParent(From))
         val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
 
-        val targetNamedInstances = toInstances.groupBy(_.typeSymbol.name.toString)
+        val targetNamedInstances = toInstances.groupBy(_.typeSymbol.name.toString.toLowerCase)
 
         val instanceClauses = fromInstances.map { instTpe =>
           val instName = instTpe.typeSymbol.name.toString
@@ -502,7 +502,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             }
             .getOrElse {
               val instSymbol = instTpe.typeSymbol
-              targetNamedInstances.getOrElse(instName, Nil) match {
+              targetNamedInstances.getOrElse(instName.toLowerCase, Nil) match {
                 case List(matchingTargetTpe)
                     if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetTpe.typeSymbol.isModuleClass =>
                   val tree = mkTransformerBodyTree0(config) {
