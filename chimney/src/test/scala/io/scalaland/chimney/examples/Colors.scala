@@ -28,5 +28,7 @@ package colors3 {
 package colors4 {
   sealed trait Color
   case object RED extends Color
+  case object GREEN extends Color
+  case object BLUE extends Color
   case object BLACK extends Color
 }
