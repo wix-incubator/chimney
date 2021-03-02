@@ -2,6 +2,7 @@ package io.scalaland.chimney
 
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
+import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
 import utest._
 
 object DslSpec extends TestSuite {
@@ -1069,6 +1070,25 @@ object DslSpec extends TestSuite {
         """)
           .check("", "Chimney can't derive transformation from Source to Target")
       }
+    }
+
+    "TransformerInto allows to override exceptions" - {
+      case class CustomException(message: String) extends Exception
+      val mapper: Throwable => Throwable = e => CustomException(e.getMessage)
+
+      val source: Option[String] = None
+
+      val transformerInto = new TransformerInto[
+        Option[String],
+        String,
+        TransformerCfg.Empty,
+        TransformerFlags.Enable[TransformerFlags.UnsafeOption, TransformerFlags.Default]](
+          source,
+          new TransformerDefinition(Map.empty, Map.empty),
+          mapper
+        ).enableUnsafeOption
+
+      intercept[CustomException](transformerInto.transform)
     }
   }
 }

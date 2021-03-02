@@ -8,7 +8,8 @@ import scala.language.experimental.macros
 
 final class TransformerFInto[F[+_], From, To, C <: TransformerCfg, Flags <: TransformerFlags](
     val source: From,
-    val td: TransformerFDefinition[F, From, To, C, Flags]
+    val td: TransformerFDefinition[F, From, To, C, Flags],
+    val exceptionMapper: Throwable => Throwable = identity
 ) extends FlagsDsl[Lambda[`F1 <: TransformerFlags` => TransformerFInto[F, From, To, C, F1]], Flags] {
 
   /** Use `value` provided here for field picked using `selector`.

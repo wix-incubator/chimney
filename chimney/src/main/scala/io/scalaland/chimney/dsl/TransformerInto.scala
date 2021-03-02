@@ -17,7 +17,8 @@ import scala.language.experimental.macros
   */
 final class TransformerInto[From, To, C <: TransformerCfg, Flags <: TransformerFlags](
     val source: From,
-    val td: TransformerDefinition[From, To, C, Flags]
+    val td: TransformerDefinition[From, To, C, Flags],
+    val exceptionMapper: Throwable => Throwable = identity
 ) extends FlagsDsl[Lambda[`F1 <: TransformerFlags` => TransformerInto[From, To, C, F1]], Flags] {
 
   /** Lifts current transformation with provided type constructor `F`.
@@ -29,7 +30,7 @@ final class TransformerInto[From, To, C <: TransformerCfg, Flags <: TransformerF
     * @return [[io.scalaland.chimney.dsl.TransformerFInto]]
     */
   def lift[F[+_]]: TransformerFInto[F, From, To, WrapperType[F, C], Flags] =
-    new TransformerFInto[F, From, To, WrapperType[F, C], Flags](source, td.lift[F])
+    new TransformerFInto[F, From, To, WrapperType[F, C], Flags](source, td.lift[F], exceptionMapper)
 
   /** Use `value` provided here for field picked using `selector`.
     *
