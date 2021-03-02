@@ -58,7 +58,8 @@ object PBTransformationSpec extends TestSuite {
       val ex = intercept[EnumUnrecognizedInstanceException](
         (pb.addressbook.PhoneType.Unrecognized(1): pb.addressbook.PhoneType).transformInto[addressbook.PhoneType]
       )
-      ex.getMessage ==> "mapping for 'Unrecognized' proto enum instance is abscent in io.scalaland.chimney.examples.addressbook.PhoneType subtypes"
+      ex.sourceTypeName ==> "io.scalaland.chimney.examples.pb.addressbook.PhoneType.Unrecognized"
+      ex.targetTypeName ==> "io.scalaland.chimney.examples.addressbook.PhoneType"
     }
 
     "transform bigger case classes" - {
