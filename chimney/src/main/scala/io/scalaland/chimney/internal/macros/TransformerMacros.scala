@@ -618,9 +618,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
 
-    def getOneofValue(t: Type) = if (isOneof(t)) t.member(TermName("value")).typeSignature else t
+    def getOneofValue(t: Type) = t.member(TermName("value")).typeSignature
 
-    val targets = getOneofValue(To).caseClassParams.map(Target.fromField(_, getOneofValue(To)))
+    val targets = {
+      val adjustedTo = if (isOneof(To)) getOneofValue(To) else To
+      adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
+    }
 
     val targetTransformerBodiesMapping = if (isTuple(From)) {
       resolveSourceTupleAccessors(From, To).flatMap { accessorsMapping =>
@@ -651,12 +654,14 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      mkTransformerBodyTree(getOneofValue(To), targets, bodyTreeArgs, config) { args =>
-        if (isOneof(To))
+      if (isOneof(To))
+        mkTransformerBodyTree(getOneofValue(To), targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, Seq(mkNewClass(getOneofValue(To), args)))
-        else
+        }
+      else
+        mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, args)
-      }
+        }
     }
   }
 
