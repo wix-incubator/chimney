@@ -27,9 +27,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       wrapperErrorPathSupportInstance = findTransformerErrorPathSupport(wrapperType)
     )
 
-    if (!config.valueLevelAccessNeeded) {
-      genTransformer[From, To](config)
-    } else {
       val tdName = TermName(c.freshName("td"))
       val derivedTransformer = genTransformer[From, To](config.copy(transformerDefinitionPrefix = q"$tdName"))
 
@@ -37,7 +34,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         val $tdName = ${c.prefix.tree}
         $derivedTransformer
       """
-    }
   }
 
   def expandTransform[
@@ -76,7 +72,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
     val srcName = freshTermName(From)
 
+    val mapper =
+      if (config.exceptionMapper != EmptyTree) config.exceptionMapper
+      else q"${config.transformerDefinitionPrefix}.exceptionMapper"
+
     genTransformerTree(srcName, config)(From, To) match {
+
 
       case Right(transformerTree) =>
         config.wrapperType match {
@@ -84,7 +85,11 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             q"""
                new _root_.io.scalaland.chimney.TransformerF[$f, $From, $To] {
                  def transform($srcName: $From): ${f.applyTypeArg(To)} = {
-                   $transformerTree
+                   try {
+                     $transformerTree
+                   } catch {
+                     case e: Throwable => throw $mapper(e)
+                   }
                  }
                }
             """
@@ -93,7 +98,11 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             q"""
                new _root_.io.scalaland.chimney.Transformer[$From, $To] {
                  def transform($srcName: $From): $To = {
-                   $transformerTree
+                   try {
+                    $transformerTree
+                   } catch {
+                     case e: Throwable => throw $mapper(e)
+                   }
                  }
                }
             """

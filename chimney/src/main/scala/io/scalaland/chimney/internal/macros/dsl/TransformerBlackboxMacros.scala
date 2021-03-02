@@ -72,7 +72,8 @@ class TransformerBlackboxMacros(val c: blackbox.Context)
     val transformerTree = genTransformer[From, To](
       TransformerConfig(
         flags = flags,
-        definitionScope = Some((weakTypeOf[From], weakTypeOf[To]))
+        definitionScope = Some((weakTypeOf[From], weakTypeOf[To])),
+        exceptionMapper = q"$tcTree.exceptionMapper"
       )
     )
 
@@ -98,7 +99,8 @@ class TransformerBlackboxMacros(val c: blackbox.Context)
         definitionScope = Some((weakTypeOf[From], weakTypeOf[To])),
         wrapperType = wrapperType,
         wrapperSupportInstance = tfs.tree,
-        wrapperErrorPathSupportInstance = findTransformerErrorPathSupport(wrapperType)
+        wrapperErrorPathSupportInstance = findTransformerErrorPathSupport(wrapperType),
+        exceptionMapper = q"$tcTree.exceptionMapper"
       )
     )
 

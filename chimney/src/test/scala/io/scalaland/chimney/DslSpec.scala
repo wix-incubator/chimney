@@ -2,6 +2,7 @@ package io.scalaland.chimney
 
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
+import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
 import utest._
 
 object DslSpec extends TestSuite {
@@ -1069,6 +1070,17 @@ object DslSpec extends TestSuite {
         """)
           .check("", "Chimney can't derive transformation from Source to Target")
       }
+    }
+
+    "allow to override exceptions" - {
+      case class CustomException(message: String) extends Exception
+
+      implicit val defined: Transformer[Option[String], String] =
+        new TransformerDefinition[Option[String], String, TransformerCfg.Empty, TransformerFlags.Default](
+          Map.empty, Map.empty, e => CustomException(e.getMessage)
+        ).enableUnsafeOption.buildTransformer
+
+      intercept[CustomException]((None: Option[String]).transformInto[String])
     }
   }
 }

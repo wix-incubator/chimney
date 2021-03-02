@@ -46,7 +46,8 @@ trait TransformerConfigSupport extends MacroUtils {
       wrapperType: Option[Type] = None,
       wrapperSupportInstance: Tree = EmptyTree,
       wrapperErrorPathSupportInstance: Option[Tree] = None,
-      coproductInstancesF: Set[(Symbol, Type)] = Set.empty // pair: inst type, target type
+      coproductInstancesF: Set[(Symbol, Type)] = Set.empty, // pair: inst type, target type
+      exceptionMapper: Tree = EmptyTree
   ) {
 
     def rec: TransformerConfig =
