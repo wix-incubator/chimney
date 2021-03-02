@@ -32,3 +32,25 @@ package colors4 {
   case object BLUE extends Color
   case object BLACK extends Color
 }
+
+package colorsnested1 {
+  package scalapb {
+    trait GeneratedOneof
+  }
+  sealed trait Color extends scalapb.GeneratedOneof
+  case class Red(value: RedInfo) extends Color
+  case class Green(value: GreenInfo) extends Color
+  case class Blue(value: BlueInfo) extends Color
+  case object Empty extends Color
+
+  case class RedInfo(code: String, name: String)
+  case class GreenInfo(code: String)
+  case class BlueInfo(code: String)
+}
+
+package colorsnested2 {
+  sealed trait Color
+  case class Red(code: String, name: String) extends Color
+  case class Green(code: String) extends Color
+  case class Blue(code: String) extends Color
+}

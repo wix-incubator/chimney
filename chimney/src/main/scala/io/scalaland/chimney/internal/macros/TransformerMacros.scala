@@ -531,6 +531,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                   }
                 case _ if (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass) =>
                   Right(cq"_: ${instSymbol.asType} => throw _root_.io.scalaland.chimney.internal.EnumUnrecognizedInstanceException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
+                case _ if (isOneof(instTpe) && instName == oneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                  Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.OneofEmptyCaseException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
                 case _ =>
                   Left {
                     Seq(
@@ -616,7 +618,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
 
-    val targets = To.caseClassParams.map(Target.fromField(_, To))
+    def getOneofValue(t: Type) = t.member(TermName("value")).typeSignature
+
+    val targets = {
+      val adjustedTo = if (isOneof(To)) getOneofValue(To) else To
+      adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
+    }
 
     val targetTransformerBodiesMapping = if (isTuple(From)) {
       resolveSourceTupleAccessors(From, To).flatMap { accessorsMapping =>
@@ -625,18 +632,36 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     } else {
       val overridesMapping = resolveOverrides(srcPrefixTree, From, targets, config)
       val notOverridenTargets = targets.diff(overridesMapping.keys.toSeq)
-      val accessorsMapping = resolveAccessorsMapping(From, notOverridenTargets, config)
 
-      resolveTransformerBodyTreeFromAccessorsMapping(srcPrefixTree, accessorsMapping, From, To, config)
-        .map(_ ++ overridesMapping)
+      def mkTransformer(From: Type, srcPrefixTree: Tree, To: Type) = {
+        val accessorsMapping = resolveAccessorsMapping(From, notOverridenTargets, config)
+
+        resolveTransformerBodyTreeFromAccessorsMapping(srcPrefixTree, accessorsMapping, From, To, config)
+          .map(_ ++ overridesMapping)
+      }
+
+      /** Proto oneOf to sealed trait enum support
+       *  @see https://github.com/wix-private/server-infra/issues/14909
+       */
+      if (isOneof(From))
+        mkTransformer(getOneofValue(From), q"$srcPrefixTree.value", To)
+      else if (isOneof(To))
+        mkTransformer(From, srcPrefixTree, getOneofValue(To))
+      else
+        mkTransformer(From, srcPrefixTree, To)
     }
 
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
-        mkNewClass(To, args)
-      }
+      if (isOneof(To))
+        mkTransformerBodyTree(getOneofValue(To), targets, bodyTreeArgs, config) { args =>
+          mkNewClass(To, Seq(mkNewClass(getOneofValue(To), args)))
+        }
+      else
+        mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
+          mkNewClass(To, args)
+        }
     }
   }
 
@@ -887,4 +912,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private def isEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
   private val enumUnrecognizedInstanceName: String = "Unrecognized"
+
+  private def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
+  private val oneofEmptyInstanceName: String = "Empty"
 }
