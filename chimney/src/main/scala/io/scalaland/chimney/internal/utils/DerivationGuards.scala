@@ -89,6 +89,18 @@ trait DerivationGuards {
     from.isSealedClass && to.isSealedClass
   }
 
+  def bothEnumerations(from: Type, to: Type): Boolean = {
+    Seq(from, to).forall(_.isEnumeration)
+  }
+
+  def fromEnumerationToSealedClass(from: Type, to: Type): Boolean = {
+    from.isEnumeration && to.isSealedClass
+  }
+
+  def fromSealedClassToEnumeration(from: Type, to: Type): Boolean = {
+    from.isSealedClass && to.isEnumeration
+  }
+
   def iterableOrArray(t: Type): Boolean = {
     t <:< iterableTpe || t <:< arrayTpe
   }

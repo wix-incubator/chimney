@@ -171,6 +171,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       expandDestinationJavaBean(srcPrefixTree, config)(From, To)
     } else if (bothSealedClasses(From, To)) {
       expandSealedClasses(srcPrefixTree, config)(From, To)
+    } else if (bothEnumerations(From, To)) {
+      expandEnumerations(srcPrefixTree)(From, To)
+    } else if (fromEnumerationToSealedClass(From, To)) {
+      expandEnumerationToSealedClass(srcPrefixTree, config)(From, To)
+    } else if (fromSealedClassToEnumeration(From, To)) {
+      expandSealedClassToEnumeration(srcPrefixTree)(From, To)
     } else {
       notSupportedDerivation(srcPrefixTree, From, To)
     }
@@ -530,8 +536,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                     )
                   }
                 case _ if
-                  (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
-                  (isOneof(instTpe) && instName == oneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                  (isScalaPBEnum(instTpe) && instName == scalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
+                  (isScalaPBOneof(instTpe) && instName == scalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
                     Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
                 case _ =>
                   Left {
@@ -547,18 +553,127 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             }
         }
 
-        if (instanceClauses.forall(_.isRight)) {
-          val clauses = instanceClauses.collect { case Right(clause) => clause }
-          Right {
-            q"$srcPrefixTree match { case ..$clauses }"
-          }
-        } else {
-          Left {
-            instanceClauses.collect { case Left(derivationErrors) => derivationErrors }.flatten
-          }
-        }
+        buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
       }
 
+  }
+
+  def expandEnumerations(srcPrefixTree: Tree)(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+    val TypeRef(typeToObjectType, _, _) = To
+    val TypeRef(typeFromObjectType, _, _) = From
+
+    val fromEnumInstances = resolveEnumInstances(typeFromObjectType)
+    val toEnumInstances = resolveEnumInstances(typeToObjectType)
+
+    val instanceClauses: List[Either[Seq[DerivationError], Tree]] = fromEnumInstances.map { case (name, fromTermSymb) =>
+      toEnumInstances.get(name).map(toTermSymb =>
+        Right(cq"${c.parse(fromTermSymb.fullName)} => ${c.parse(toTermSymb.fullName)}")
+      ).getOrElse(
+        Left {
+          Seq(
+            CantFindCoproductInstanceTransformer(
+              fromTermSymb.fullName,
+              From.typeSymbol.fullName,
+              To.typeSymbol.fullName
+            )
+          )
+        }
+      )
+    }.toList
+
+    buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
+  }
+
+  def expandEnumerationToSealedClass(srcPrefixTree: Tree,
+                                     config: TransformerConfig
+                                    )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+    val TypeRef(typeFromObjectType, _, _) = From
+    val toCS = To.typeSymbol.classSymbolOpt.get
+
+    val fromEnumInstances = resolveEnumInstances(typeFromObjectType)
+    val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
+
+    val targetNamedInstances = toInstances.groupBy(_.typeSymbol.name.toString.toLowerCase)
+
+    val instanceClauses = fromEnumInstances.map { case(name, termSymbol) =>
+      targetNamedInstances.getOrElse(name, Nil) match {
+        case List(matchingTargetTpe) if matchingTargetTpe.typeSymbol.isModuleClass =>
+          val tree = mkTransformerBodyTree0(config) {
+            q"${matchingTargetTpe.typeSymbol.asClass.module}"
+          }
+          Right(cq"${c.parse(termSymbol.fullName)} => $tree")
+        case _ :: _ :: _ =>
+          Left {
+            Seq(
+              AmbiguousCoproductInstance(
+                termSymbol.fullName,
+                From.typeSymbol.fullName,
+                To.typeSymbol.fullName
+              )
+            )
+          }
+        case _ =>
+          Left {
+            Seq(
+              CantFindCoproductInstanceTransformer(
+                termSymbol.fullName,
+                From.typeSymbol.fullName,
+                To.typeSymbol.fullName
+              )
+            )
+          }
+      }
+    }.toList
+
+    buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
+  }
+
+  def expandSealedClassToEnumeration(srcPrefixTree: Tree)(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+    val TypeRef(typeToObjectType, _, _) = To
+    val fromCS = From.typeSymbol.classSymbolOpt.get
+
+    val fromInstances = fromCS.subclasses.map(_.typeInSealedParent(To))
+    val toEnumInstances = resolveEnumInstances(typeToObjectType)
+
+    val instanceClauses = fromInstances.map { instTpe =>
+      val instName = instTpe.typeSymbol.name.toString
+
+      val instSymbol = instTpe.typeSymbol
+      toEnumInstances.get(instName.toLowerCase).map {
+        case toTermSymbol if (instSymbol.isModuleClass || instSymbol.isCaseClass) =>
+          Right(cq"_: ${instSymbol.asType} => ${c.parse(toTermSymbol.fullName)}")
+      }.getOrElse(
+        Left { Seq(
+          CantFindCoproductInstanceTransformer(
+            instTpe.typeSymbol.fullName,
+            From.typeSymbol.fullName,
+            To.typeSymbol.fullName
+          )
+        )})
+    }
+
+    buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
+  }
+
+  private def buildMatchingBlockFromClauses(instanceClauses: List[Either[Seq[DerivationError], Tree]],
+                                            srcPrefixTree: Tree): Either[List[DerivationError], Tree] = {
+    if (instanceClauses.forall(_.isRight)) {
+      val clauses = instanceClauses.collect { case Right(clause) => clause }
+      Right {
+        q"$srcPrefixTree match { case ..$clauses }"
+      }
+    } else {
+      Left {
+        instanceClauses.collect { case Left(derivationErrors) => derivationErrors }.flatten
+      }
+    }
+  }
+
+
+  private def resolveEnumInstances(t: Type): Map[String, TermSymbol] = {
+    t.decls.collect {
+      case term: TermSymbol if term.isVal => Map(term.name.toString.trim.toLowerCase -> term)
+    }.foldLeft(Map.empty[String, TermSymbol])(_ ++ _)
   }
 
   def resolveCoproductInstance(
@@ -621,7 +736,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     def getOneofValue(t: Type) = t.member(TermName("value")).typeSignature
 
     val targets = {
-      val adjustedTo = if (isOneof(To)) getOneofValue(To) else To
+      val adjustedTo = if (isScalaPBOneof(To)) getOneofValue(To) else To
       adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
     }
 
@@ -643,9 +758,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       /** Proto oneOf to sealed trait enum support
        *  @see https://github.com/wix-private/server-infra/issues/14909
        */
-      if (isOneof(From))
+      if (isScalaPBOneof(From))
         mkTransformer(getOneofValue(From), q"$srcPrefixTree.value", To)
-      else if (isOneof(To))
+      else if (isScalaPBOneof(To))
         mkTransformer(From, srcPrefixTree, getOneofValue(To))
       else
         mkTransformer(From, srcPrefixTree, To)
@@ -654,7 +769,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      if (isOneof(To))
+      if (isScalaPBOneof(To))
         mkTransformerBodyTree(getOneofValue(To), targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, Seq(mkNewClass(getOneofValue(To), args)))
         }
@@ -910,9 +1025,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"
 
-  private def isEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
-  private val enumUnrecognizedInstanceName: String = "Unrecognized"
+  private def isScalaPBEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
+  private val scalaPBEnumUnrecognizedInstanceName: String = "Unrecognized"
 
-  private def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
-  private val oneofEmptyInstanceName: String = "Empty"
+  private def isScalaPBOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
+  private val scalaPBOneofEmptyInstanceName: String = "Empty"
 }

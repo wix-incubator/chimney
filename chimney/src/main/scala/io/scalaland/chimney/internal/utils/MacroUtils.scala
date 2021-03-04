@@ -55,6 +55,9 @@ trait MacroUtils extends CompanionUtils {
     def isSealedClass: Boolean =
       t.typeSymbol.classSymbolOpt.exists(_.isSealed)
 
+    def isEnumeration: Boolean =
+      t.typeSymbol.fullName == "scala.Enumeration.Value"
+
     def caseClassParams: Seq[MethodSymbol] = {
       t.decls.collect {
         case m: MethodSymbol if m.isCaseAccessor || (isValueClass && m.isParamAccessor) =>

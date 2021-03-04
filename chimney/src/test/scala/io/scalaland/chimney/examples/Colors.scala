@@ -54,3 +54,22 @@ package colorsnested2 {
   case class Green(code: String) extends Color
   case class Blue(code: String) extends Color
 }
+
+package colors5 {
+  object Color extends Enumeration {
+    type Color = Value
+    val Red, Green, Blue, Black = Value
+  }
+}
+
+package colors6 {
+  object Color extends Enumeration {
+    type Color = Value
+    val Red, Green, Blue, Black = Value
+  }
+
+  object ColorUpper extends Enumeration {
+    type ColorUpper = Value
+    val RED, GREEN, BLUE, BLACK = Value
+  }
+}

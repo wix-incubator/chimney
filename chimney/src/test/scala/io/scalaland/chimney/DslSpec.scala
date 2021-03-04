@@ -857,6 +857,32 @@ object DslSpec extends TestSuite {
 
     }
 
+    "support enumerations transformation" - {
+      "transforming enumeration into enumeration" - {
+        (colors5.Color.Red: colors5.Color.Color).transformInto[colors6.Color.Color] ==> colors6.Color.Red
+        (colors5.Color.Black: colors5.Color.Color).transformInto[colors6.Color.Color] ==> colors6.Color.Black
+        (colors5.Color.Blue: colors5.Color.Color).transformInto[colors6.Color.Color] ==> colors6.Color.Blue
+      }
+
+      "transforming enumeration into enumeration with different case" - {
+        (colors5.Color.Red: colors5.Color.Color).transformInto[colors6.ColorUpper.ColorUpper] ==> colors6.ColorUpper.RED
+        (colors5.Color.Green: colors5.Color.Color).transformInto[colors6.ColorUpper.ColorUpper] ==> colors6.ColorUpper.GREEN
+        (colors5.Color.Blue: colors5.Color.Color).transformInto[colors6.ColorUpper.ColorUpper] ==> colors6.ColorUpper.BLUE
+      }
+
+      "transforming enumeration into STF" - {
+        (colors5.Color.Blue: colors5.Color.Color).transformInto[colors4.Color] ==> colors4.BLUE
+        (colors5.Color.Red: colors5.Color.Color).transformInto[colors4.Color] ==> colors4.RED
+        (colors5.Color.Black: colors5.Color.Color).transformInto[colors4.Color] ==> colors4.BLACK
+      }
+
+      "transforming STF into enumeration" - {
+        (colors4.BLACK: colors4.Color).transformInto[colors5.Color.Color] ==> colors5.Color.Black
+        (colors4.GREEN: colors4.Color).transformInto[colors5.Color.Color] ==> colors5.Color.Green
+        (colors4.BLUE: colors4.Color).transformInto[colors5.Color.Color] ==> colors5.Color.Blue
+      }
+    }
+
     "support polymorphic source/target objects and modifiers" - {
 
       import Poly._
