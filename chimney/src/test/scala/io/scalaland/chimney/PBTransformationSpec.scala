@@ -4,7 +4,7 @@ import utest._
 import io.scalaland.chimney.examples.addressbook
 import io.scalaland.chimney.examples.order
 import io.scalaland.chimney.examples.pb
-import io.scalaland.chimney.internal.EnumUnrecognizedInstanceException
+import io.scalaland.chimney.internal.CoproductInstanceNotFoundException
 
 object PBTransformationSpec extends TestSuite {
 
@@ -55,7 +55,7 @@ object PBTransformationSpec extends TestSuite {
     "handle transformation of proto with 'Unrecognized' instance properly" - {
       (pb.addressbook.PhoneType.HOME: pb.addressbook.PhoneType).transformInto[addressbook.PhoneType] ==> addressbook.HOME
 
-      val ex = intercept[EnumUnrecognizedInstanceException](
+      val ex = intercept[CoproductInstanceNotFoundException](
         (pb.addressbook.PhoneType.Unrecognized(1): pb.addressbook.PhoneType).transformInto[addressbook.PhoneType]
       )
       ex.sourceTypeName ==> "io.scalaland.chimney.examples.pb.addressbook.PhoneType.Unrecognized"

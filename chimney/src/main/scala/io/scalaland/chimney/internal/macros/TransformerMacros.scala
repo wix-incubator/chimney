@@ -529,10 +529,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                       )
                     )
                   }
-                case _ if (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass) =>
-                  Right(cq"_: ${instSymbol.asType} => throw _root_.io.scalaland.chimney.internal.EnumUnrecognizedInstanceException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
-                case _ if (isOneof(instTpe) && instName == oneofEmptyInstanceName && instSymbol.isModuleClass) =>
-                  Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.OneofEmptyCaseException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
+                case _ if
+                  (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
+                  (isOneof(instTpe) && instName == oneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                    Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
                 case _ =>
                   Left {
                     Seq(
