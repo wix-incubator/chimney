@@ -501,7 +501,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         val fromInstances = fromCS.subclasses.map(_.typeInSealedParent(From))
         val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
 
-        val targetNamedInstances = toInstances.groupBy(_.typeSymbol.name.toString.toLowerCase)
+        val targetNamedInstances = toInstances.groupBy(t => rawInstanceName(t.typeSymbol.name.toString))
 
         val instanceClauses = fromInstances.map { instTpe =>
           val instName = instTpe.typeSymbol.name.toString
@@ -512,7 +512,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             }
             .getOrElse {
               val instSymbol = instTpe.typeSymbol
-              targetNamedInstances.getOrElse(instName.toLowerCase, Nil) match {
+              targetNamedInstances.getOrElse(rawInstanceName(instName), Nil) match {
                 case List(matchingTargetTpe)
                     if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetTpe.typeSymbol.isModuleClass =>
                   val tree = mkTransformerBodyTree0(config) {
@@ -593,7 +593,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     val fromEnumInstances = resolveEnumInstances(typeFromObjectType)
     val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
 
-    val targetNamedInstances = toInstances.groupBy(_.typeSymbol.name.toString.toLowerCase)
+    val targetNamedInstances = toInstances.groupBy(t => rawInstanceName(t.typeSymbol.name.toString))
 
     val instanceClauses = fromEnumInstances.map { case(name, termSymbol) =>
       targetNamedInstances.getOrElse(name, Nil) match {
@@ -639,7 +639,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       val instName = instTpe.typeSymbol.name.toString
 
       val instSymbol = instTpe.typeSymbol
-      toEnumInstances.get(instName.toLowerCase).map {
+      toEnumInstances.get(rawInstanceName(instName)).map {
         case toTermSymbol if (instSymbol.isModuleClass || instSymbol.isCaseClass) =>
           Right(cq"_: ${instSymbol.asType} => ${c.parse(toTermSymbol.fullName)}")
       }.getOrElse(
@@ -654,6 +654,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
     buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
   }
+
+  private def rawInstanceName(name: String): String =
+    name.filterNot(_ == '_').toLowerCase()
 
   private def buildMatchingBlockFromClauses(instanceClauses: List[Either[Seq[DerivationError], Tree]],
                                             srcPrefixTree: Tree): Either[List[DerivationError], Tree] = {
@@ -672,7 +675,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private def resolveEnumInstances(t: Type): Map[String, TermSymbol] = {
     t.decls.collect {
-      case term: TermSymbol if term.isVal => Map(term.name.toString.trim.toLowerCase -> term)
+      case term: TermSymbol if term.isVal => Map(rawInstanceName(term.name.toString.trim) -> term)
     }.foldLeft(Map.empty[String, TermSymbol])(_ ++ _)
   }
 

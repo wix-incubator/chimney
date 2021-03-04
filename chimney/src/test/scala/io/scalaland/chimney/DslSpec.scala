@@ -717,7 +717,19 @@ object DslSpec extends TestSuite {
 
         "transforming enum ignoring case" - {
           (colors2.Red: colors2.Color).transformInto[colors4.Color] ==> colors4.RED
-          (colors4.BLACK: colors4.Color).transformInto[colors2.Color] ==> colors2.Black
+          (colors2.Black: colors2.Color).transformInto[colors4.Color] ==> colors4.BLACK
+
+          (colors4.BLUE: colors4.Color).transformInto[colors2.Color] ==> colors2.Blue
+          (colors4.GREEN: colors4.Color).transformInto[colors2.Color] ==> colors2.Green
+        }
+
+
+        "transforming enum ignoring underscore" - {
+          (colorsUpperUndescore.BLOODY_RED: colorsUpperUndescore.Color).transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.BloodyRed
+          (colorsUpperUndescore.DARK_GREEN: colorsUpperUndescore.Color).transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.DarkGreen
+
+          (colorsUpperCamel.SkyBlue: colorsUpperCamel.Color).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SKY_BLUE
+          (colorsUpperCamel.SnowWhite: colorsUpperCamel.Color).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SNOW_WHITE
         }
       }
 
@@ -864,10 +876,22 @@ object DslSpec extends TestSuite {
         (colors5.Color.Blue: colors5.Color.Color).transformInto[colors6.Color.Color] ==> colors6.Color.Blue
       }
 
-      "transforming enumeration into enumeration with different case" - {
+      "transforming enumeration into enumeration ignoring case" - {
         (colors5.Color.Red: colors5.Color.Color).transformInto[colors6.ColorUpper.ColorUpper] ==> colors6.ColorUpper.RED
         (colors5.Color.Green: colors5.Color.Color).transformInto[colors6.ColorUpper.ColorUpper] ==> colors6.ColorUpper.GREEN
         (colors5.Color.Blue: colors5.Color.Color).transformInto[colors6.ColorUpper.ColorUpper] ==> colors6.ColorUpper.BLUE
+      }
+
+      "transforming enumeration into enumeration ignoring underscore" - {
+        (colors6.ColorUpperCamel.BloodyRed: colors6.ColorUpperCamel.ColorUpperCamel)
+          .transformInto[colors6.ColorUpperUnderscore.ColorUpperUnderscore] ==> colors6.ColorUpperUnderscore.BLOODY_RED
+        (colors6.ColorUpperCamel.DarkGreen: colors6.ColorUpperCamel.ColorUpperCamel)
+          .transformInto[colors6.ColorUpperUnderscore.ColorUpperUnderscore] ==> colors6.ColorUpperUnderscore.DARK_GREEN
+
+        (colors6.ColorUpperUnderscore.SKY_BLUE: colors6.ColorUpperUnderscore.ColorUpperUnderscore)
+          .transformInto[colors6.ColorUpperCamel.ColorUpperCamel] ==> colors6.ColorUpperCamel.SkyBlue
+        (colors6.ColorUpperUnderscore.SNOW_WHITE: colors6.ColorUpperUnderscore.ColorUpperUnderscore)
+          .transformInto[colors6.ColorUpperCamel.ColorUpperCamel] ==> colors6.ColorUpperCamel.SnowWhite
       }
 
       "transforming enumeration into STF" - {
@@ -880,6 +904,14 @@ object DslSpec extends TestSuite {
         (colors4.BLACK: colors4.Color).transformInto[colors5.Color.Color] ==> colors5.Color.Black
         (colors4.GREEN: colors4.Color).transformInto[colors5.Color.Color] ==> colors5.Color.Green
         (colors4.BLUE: colors4.Color).transformInto[colors5.Color.Color] ==> colors5.Color.Blue
+      }
+
+      "transforming enum <-> STF ignoring underscore" - {
+        (colorsUpperUndescore.BLOODY_RED: colorsUpperUndescore.Color).transformInto[colors6.ColorUpperCamel.ColorUpperCamel] ==> colors6.ColorUpperCamel.BloodyRed
+        (colorsUpperUndescore.SNOW_WHITE: colorsUpperUndescore.Color).transformInto[colors6.ColorUpperCamel.ColorUpperCamel] ==> colors6.ColorUpperCamel.SnowWhite
+
+        (colors6.ColorUpperCamel.SkyBlue: colors6.ColorUpperCamel.ColorUpperCamel).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SKY_BLUE
+        (colors6.ColorUpperCamel.DarkGreen: colors6.ColorUpperCamel.ColorUpperCamel).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.DARK_GREEN
       }
     }
 

@@ -33,6 +33,22 @@ package colors4 {
   case object BLACK extends Color
 }
 
+package colorsUpperUndescore {
+  sealed trait Color
+  case object BLOODY_RED extends Color
+  case object DARK_GREEN extends Color
+  case object SKY_BLUE extends Color
+  case object SNOW_WHITE extends Color
+}
+
+package colorsUpperCamel {
+  sealed trait Color
+  case object BloodyRed extends Color
+  case object DarkGreen extends Color
+  case object SkyBlue extends Color
+  case object SnowWhite extends Color
+}
+
 package colorsnested1 {
   package scalapb {
     trait GeneratedOneof
@@ -71,5 +87,15 @@ package colors6 {
   object ColorUpper extends Enumeration {
     type ColorUpper = Value
     val RED, GREEN, BLUE, BLACK = Value
+  }
+
+  object ColorUpperUnderscore extends Enumeration {
+    type ColorUpperUnderscore = Value
+    val BLOODY_RED, DARK_GREEN, SKY_BLUE, SNOW_WHITE = Value
+  }
+
+  object ColorUpperCamel extends Enumeration {
+    type ColorUpperCamel = Value
+    val BloodyRed, DarkGreen, SkyBlue, SnowWhite = Value
   }
 }
