@@ -63,11 +63,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     q"""
        val _ = $tcTree // hack to avoid unused warnings
        val $tiName = ${c.prefix.tree}
-       try {
-        ${derivedTransformerTree.callTransform(q"$tiName.source")}
-       } catch {
-        case e: Throwable => throw $tiName.exceptionMapper(e)
-       }
+       _root_.scala.util.Try(${derivedTransformerTree.callTransform(q"$tiName.source")})
+         .recover { case e: Throwable => throw $tiName.exceptionMapper(e) }.get
     """
   }
 
