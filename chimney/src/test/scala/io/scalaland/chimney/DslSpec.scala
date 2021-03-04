@@ -32,6 +32,19 @@ object DslSpec extends TestSuite {
       batmanDTO.name ==> "BatmanT"
     }
 
+    "use implicit transformer for nested field (TransformerInto)" - {
+
+      import Domain1._
+
+      implicit def trans: Transformer[UserName, String] = userNameToStringTransformer
+
+      val batman = User("123", UserName("Batman"))
+      val batmanDTO = batman.into[UserDTO].withFieldConst(_.name, batman.name.into[String].transform).transform
+
+      batmanDTO.id ==> "123"
+      batmanDTO.name ==> "BatmanT"
+    }
+
     "support different set of fields of source and target" - {
 
       case class Foo(x: Int, y: String, z: (Double, Double))
