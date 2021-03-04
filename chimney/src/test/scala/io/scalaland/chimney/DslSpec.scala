@@ -2,8 +2,7 @@ package io.scalaland.chimney
 
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
-import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
-import io.scalaland.chimney.internal.OneofEmptyCaseException
+import io.scalaland.chimney.internal.{CoproductInstanceNotFoundException, TransformerCfg, TransformerFlags}
 import utest._
 
 object DslSpec extends TestSuite {
@@ -835,7 +834,7 @@ object DslSpec extends TestSuite {
         }
 
         "throw an exception if oneof Empty -> sealed trait family without Empty" - {
-          val ex = intercept[OneofEmptyCaseException]((colorsnested1.Empty: colorsnested1.Color).transformInto[colorsnested2.Color])
+          val ex = intercept[CoproductInstanceNotFoundException]((colorsnested1.Empty: colorsnested1.Color).transformInto[colorsnested2.Color])
 
           ex.sourceTypeName ==> colorsnested1.Empty.getClass.getName.stripSuffix("$")
           ex.targetTypeName ==> classOf[colorsnested2.Color].getName
