@@ -86,19 +86,19 @@ trait DerivationGuards {
   }
 
   def bothSealedClasses(from: Type, to: Type): Boolean = {
-    from.isSealedClass && to.isSealedClass
+    (from.isSealedClass && !from.typeSymbol.isJavaEnum) && (to.isSealedClass && !to.typeSymbol.isJavaEnum)
   }
 
   def bothEnumerations(from: Type, to: Type): Boolean = {
-    Seq(from, to).forall(_.isEnumeration)
+    Seq(from, to).forall(t => t.isEnumeration || t.typeSymbol.isJavaEnum)
   }
 
   def fromEnumerationToSealedClass(from: Type, to: Type): Boolean = {
-    from.isEnumeration && to.isSealedClass
+    (from.isEnumeration || from.typeSymbol.isJavaEnum) && to.isSealedClass
   }
 
   def fromSealedClassToEnumeration(from: Type, to: Type): Boolean = {
-    from.isSealedClass && to.isEnumeration
+    from.isSealedClass && (to.isEnumeration || to.typeSymbol.isJavaEnum)
   }
 
   def iterableOrArray(t: Type): Boolean = {

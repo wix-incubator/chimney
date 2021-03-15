@@ -559,11 +559,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   }
 
   def expandEnumerations(srcPrefixTree: Tree)(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
-    val TypeRef(typeToObjectType, _, _) = To
-    val TypeRef(typeFromObjectType, _, _) = From
-
-    val fromEnumInstances = resolveEnumInstances(typeFromObjectType)
-    val toEnumInstances = resolveEnumInstances(typeToObjectType)
+    val fromEnumInstances = resolveEnumInstances(From)
+    val toEnumInstances = resolveEnumInstances(To)
 
     val instanceClauses: List[Either[Seq[DerivationError], Tree]] = fromEnumInstances.map { case (name, fromTermSymb) =>
       toEnumInstances.get(name).map(toTermSymb =>
@@ -587,10 +584,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandEnumerationToSealedClass(srcPrefixTree: Tree,
                                      config: TransformerConfig
                                     )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
-    val TypeRef(typeFromObjectType, _, _) = From
     val toCS = To.typeSymbol.classSymbolOpt.get
 
-    val fromEnumInstances = resolveEnumInstances(typeFromObjectType)
+    val fromEnumInstances = resolveEnumInstances(From)
     val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
 
     val targetNamedInstances = toInstances.groupBy(t => rawInstanceName(t.typeSymbol.name.toString))
@@ -629,11 +625,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   }
 
   def expandSealedClassToEnumeration(srcPrefixTree: Tree)(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
-    val TypeRef(typeToObjectType, _, _) = To
     val fromCS = From.typeSymbol.classSymbolOpt.get
 
     val fromInstances = fromCS.subclasses.map(_.typeInSealedParent(To))
-    val toEnumInstances = resolveEnumInstances(typeToObjectType)
+    val toEnumInstances = resolveEnumInstances(To)
 
     val instanceClauses = fromInstances.map { instTpe =>
       val instName = instTpe.typeSymbol.name.toString
@@ -674,9 +669,16 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
 
   private def resolveEnumInstances(t: Type): Map[String, TermSymbol] = {
-    t.decls.collect {
-      case term: TermSymbol if term.isVal => Map(rawInstanceName(term.name.toString.trim) -> term)
-    }.foldLeft(Map.empty[String, TermSymbol])(_ ++ _)
+    if (t.typeSymbol.isJavaEnum) {
+      t.companion.decls.collect {
+          case term: TermSymbol if term.isJavaEnum => Map(rawInstanceName(term.name.toString.trim) -> term)
+        }.foldLeft(Map.empty[String, TermSymbol])(_ ++ _)
+    } else {
+      val TypeRef(t1, _, _) = t
+      t1.decls.collect {
+        case term: TermSymbol if term.isVal => Map(rawInstanceName(term.name.toString.trim) -> term)
+      }.foldLeft(Map.empty[String, TermSymbol])(_ ++ _)
+    }
   }
 
   def resolveCoproductInstance(

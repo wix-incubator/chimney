@@ -869,7 +869,28 @@ object DslSpec extends TestSuite {
 
     }
 
-    "support enumerations transformation" - {
+    "support enumerations/java enum transformation" - {
+      "transforming enumeration into java enum" - {
+        (colors5.Color.Black: colors5.Color.Color).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Black
+        (colors5.Color.Blue: colors5.Color.Color).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Blue
+        (colors5.Color.Green: colors5.Color.Color).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Green
+        (colors5.Color.Red: colors5.Color.Color).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Red
+      }
+
+      "transforming java enum into java enum" - {
+        (JavaEnums.JavaColorsUpperCase.BLACK: JavaEnums.JavaColorsUpperCase).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Black
+        (JavaEnums.JavaColorsUpperCase.BLUE: JavaEnums.JavaColorsUpperCase).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Blue
+        (JavaEnums.JavaColorsUpperCase.GREEN: JavaEnums.JavaColorsUpperCase).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Green
+        (JavaEnums.JavaColorsUpperCase.RED: JavaEnums.JavaColorsUpperCase).transformInto[JavaEnums.JavaColors] ==> JavaEnums.JavaColors.Red
+      }
+
+      "transforming java enum into enumeration" - {
+        (JavaEnums.JavaColors.Black: JavaEnums.JavaColors).transformInto[colors5.Color.Color] ==> colors5.Color.Black
+        (JavaEnums.JavaColors.Blue: JavaEnums.JavaColors).transformInto[colors5.Color.Color] ==> colors5.Color.Blue
+        (JavaEnums.JavaColors.Green: JavaEnums.JavaColors).transformInto[colors5.Color.Color] ==> colors5.Color.Green
+        (JavaEnums.JavaColors.Red: JavaEnums.JavaColors).transformInto[colors5.Color.Color] ==> colors5.Color.Red
+      }
+
       "transforming enumeration into enumeration" - {
         (colors5.Color.Red: colors5.Color.Color).transformInto[colors6.Color.Color] ==> colors6.Color.Red
         (colors5.Color.Black: colors5.Color.Color).transformInto[colors6.Color.Color] ==> colors6.Color.Black
