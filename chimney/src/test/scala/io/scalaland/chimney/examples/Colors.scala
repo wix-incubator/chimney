@@ -54,3 +54,15 @@ package colorsnested2 {
   case class Green(code: String) extends Color
   case class Blue(code: String) extends Color
 }
+
+package colorsnested3 {
+  sealed trait Color
+  case class Red(value: RedInfo) extends Color
+  case class Green(value: GreenInfo) extends Color
+  case class Blue(value: BlueInfo) extends Color
+  case object Empty extends Color
+
+  case class RedInfo(code: String, name: String)
+  case class GreenInfo(code: String)
+  case class BlueInfo(code: String)
+}

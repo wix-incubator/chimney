@@ -64,7 +64,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
        val _ = $tcTree // hack to avoid unused warnings
        val $tiName = ${c.prefix.tree}
        _root_.scala.util.Try(${derivedTransformerTree.callTransform(q"$tiName.source")})
-         .recover { case e: Throwable => throw $tiName.exceptionMapper(e) }.get
+         .recover { case e: Throwable => throw $tiName.exceptionMapper(e) }
+         .get
     """
   }
 
@@ -615,10 +616,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
 
-    def getOneofValue(t: Type) = t.member(TermName("value")).typeSignature
+    val oneofValueField = TermName("value")
+    def getValueField(t: Type) = t.member(oneofValueField).typeSignature
+    def hasValueField(t: Type) = t.member(oneofValueField) != NoSymbol
 
     val targets = {
-      val adjustedTo = if (isOneof(To)) getOneofValue(To) else To
+      val adjustedTo = if (isOneof(To) && !hasValueField(From)) getValueField(To) else To
       adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
     }
 
@@ -640,10 +643,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       /** Proto oneOf to sealed trait enum support
        *  @see https://github.com/wix-private/server-infra/issues/14909
        */
-      if (isOneof(From))
-        mkTransformer(getOneofValue(From), q"$srcPrefixTree.value", To)
-      else if (isOneof(To))
-        mkTransformer(From, srcPrefixTree, getOneofValue(To))
+      if (isOneof(From) && !hasValueField(To))
+        mkTransformer(getValueField(From), q"$srcPrefixTree.value", To)
+      else if (isOneof(To) && !hasValueField(From))
+        mkTransformer(From, srcPrefixTree, getValueField(To))
       else
         mkTransformer(From, srcPrefixTree, To)
     }
@@ -651,9 +654,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      if (isOneof(To))
-        mkTransformerBodyTree(getOneofValue(To), targets, bodyTreeArgs, config) { args =>
-          mkNewClass(To, Seq(mkNewClass(getOneofValue(To), args)))
+      if (isOneof(To) && !hasValueField(From))
+        mkTransformerBodyTree(getValueField(To), targets, bodyTreeArgs, config) { args =>
+          mkNewClass(To, Seq(mkNewClass(getValueField(To), args)))
         }
       else
         mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
