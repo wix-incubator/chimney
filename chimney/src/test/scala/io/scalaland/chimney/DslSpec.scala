@@ -730,7 +730,19 @@ object DslSpec extends TestSuite {
 
         "transforming enum ignoring case" - {
           (colors2.Red: colors2.Color).transformInto[colors4.Color] ==> colors4.RED
-          (colors4.BLACK: colors4.Color).transformInto[colors2.Color] ==> colors2.Black
+          (colors2.Black: colors2.Color).transformInto[colors4.Color] ==> colors4.BLACK
+
+          (colors4.BLUE: colors4.Color).transformInto[colors2.Color] ==> colors2.Blue
+          (colors4.GREEN: colors4.Color).transformInto[colors2.Color] ==> colors2.Green
+        }
+
+
+        "transforming enum ignoring underscore" - {
+          (colorsUpperUndescore.BLOODY_RED: colorsUpperUndescore.Color).transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.BloodyRed
+          (colorsUpperUndescore.DARK_GREEN: colorsUpperUndescore.Color).transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.DarkGreen
+
+          (colorsUpperCamel.SkyBlue: colorsUpperCamel.Color).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SKY_BLUE
+          (colorsUpperCamel.SnowWhite: colorsUpperCamel.Color).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SNOW_WHITE
         }
       }
 
