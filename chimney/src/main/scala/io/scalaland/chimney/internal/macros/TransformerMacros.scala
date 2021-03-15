@@ -493,7 +493,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         val fromInstances = fromCS.subclasses.map(_.typeInSealedParent(From))
         val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
 
-        val targetNamedInstances = toInstances.groupBy(_.typeSymbol.name.toString.toLowerCase)
+        val targetNamedInstances = toInstances.groupBy(t => rawInstanceName(t.typeSymbol.name.toString))
 
         val instanceClauses = fromInstances.map { instTpe =>
           val instName = instTpe.typeSymbol.name.toString
@@ -504,7 +504,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             }
             .getOrElse {
               val instSymbol = instTpe.typeSymbol
-              targetNamedInstances.getOrElse(instName.toLowerCase, Nil) match {
+              targetNamedInstances.getOrElse(rawInstanceName(instName), Nil) match {
                 case List(matchingTargetTpe)
                     if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetTpe.typeSymbol.isModuleClass =>
                   val tree = mkTransformerBodyTree0(config) {
@@ -558,6 +558,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       }
 
   }
+
+  private def rawInstanceName(name: String): String =
+    name.filterNot(_ == '_').toLowerCase()
 
   def resolveCoproductInstance(
       srcPrefixTree: Tree,
