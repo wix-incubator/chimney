@@ -564,17 +564,15 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
     val instanceClauses: List[Either[Seq[DerivationError], Tree]] = fromEnumInstances.map { case (name, fromTermSymb) =>
       toEnumInstances.get(name).map(toTermSymb =>
-        Right(cq"${c.parse(fromTermSymb.fullName)} => ${c.parse(toTermSymb.fullName)}")
-      ).getOrElse(
-        Left {
-          Seq(
-            CantFindCoproductInstanceTransformer(
-              fromTermSymb.fullName,
-              From.typeSymbol.fullName,
-              To.typeSymbol.fullName
-            )
+        cq"${c.parse(fromTermSymb.fullName)} => ${c.parse(toTermSymb.fullName)}"
+      ).toRight(
+        Seq(
+          CantFindCoproductInstanceTransformer(
+            fromTermSymb.fullName,
+            From.typeSymbol.fullName,
+            To.typeSymbol.fullName
           )
-        }
+        )
       )
     }.toList
 
@@ -636,15 +634,15 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       val instSymbol = instTpe.typeSymbol
       toEnumInstances.get(rawInstanceName(instName)).map {
         case toTermSymbol if (instSymbol.isModuleClass || instSymbol.isCaseClass) =>
-          Right(cq"_: ${instSymbol.asType} => ${c.parse(toTermSymbol.fullName)}")
-      }.getOrElse(
-        Left { Seq(
+          cq"_: ${instSymbol.asType} => ${c.parse(toTermSymbol.fullName)}"
+      }.toRight(
+        Seq(
           CantFindCoproductInstanceTransformer(
             instTpe.typeSymbol.fullName,
             From.typeSymbol.fullName,
             To.typeSymbol.fullName
           )
-        )})
+        ))
     }
 
     buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
