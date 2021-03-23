@@ -68,8 +68,8 @@ lazy val root = project
   .settings(settings: _*)
   .settings(publishSettings: _*)
   .settings(noPublishSettings: _*)
-  .aggregate(chimneyJVM, chimneyJS, chimneyCatsJVM, chimneyCatsJS)
-  .dependsOn(chimneyJVM, chimneyJS, chimneyCatsJVM, chimneyCatsJS)
+  .aggregate(chimneyJVM, chimneyCatsJVM)
+  .dependsOn(chimneyJVM, chimneyCatsJVM)
   .enablePlugins(SphinxPlugin, GhpagesPlugin)
   .settings(
     Sphinx / version := version.value,
