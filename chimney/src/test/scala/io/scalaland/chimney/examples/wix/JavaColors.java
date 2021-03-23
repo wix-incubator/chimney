@@ -1,11 +1,11 @@
 package io.scalaland.chimney.examples.wix;
 
-public interface JavaEnums {
-    enum JavaColors {
+public interface JavaColors {
+    enum Colors {
         Red, Green, Blue, Black
     }
 
-    enum JavaColorsUpperCase {
+    enum ColorsUpperCase {
         RED, GREEN, BLUE, BLACK
     }
 }

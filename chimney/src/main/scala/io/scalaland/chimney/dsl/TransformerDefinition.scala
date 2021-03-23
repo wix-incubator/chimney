@@ -115,7 +115,7 @@ final class TransformerDefinition[From, To, C <: TransformerCfg, Flags <: Transf
   def withCoproductInstance[Inst](f: Inst => To): TransformerDefinition[From, To, _ <: TransformerCfg, Flags] =
     macro TransformerDefinitionWhiteboxMacros.withCoproductInstanceImpl[From, To, Inst, C]
 
-  /** Use `f` to calculate the (missing) coproduct instance when mapping one coproduct into another.
+  /** Map exact value of a coproduct `from` to a coproduct `to`
     *
     * By default if mapping one coproduct in `From` into another coproduct in `To` derivation
     * expects that coproducts to have matching names of its components, and for every component
@@ -123,11 +123,10 @@ final class TransformerDefinition[From, To, C <: TransformerCfg, Flags <: Transf
     * it fails compilation unless provided replacement with this operation.
     *
     * @see [[https://scalalandio.github.io/chimney/transformers/customizing-transformers.html#transforming-coproducts]] for more details
-    * @param f function to calculate values of components that cannot be mapped automatically
     * @return [[io.scalaland.chimney.dsl.TransformerDefinition]]
     */
-  def withCoproductInstance[Inst](f: PartialFunction[Inst, To]): TransformerDefinition[From, To, _ <: TransformerCfg, Flags] =
-    macro TransformerDefinitionWhiteboxMacros.withCoproductInstanceImpl[From, To, Inst, C]
+  def withCoproductInstance[Inst](from: Inst, to: To): TransformerDefinition[From, To, _ <: TransformerCfg, Flags] =
+    macro TransformerDefinitionWhiteboxMacros.withCoproductInstanceImpl2[From, To, Inst, C]
 
   /** Use `f` to calculate the (missing) wrapped coproduct instance when mapping one coproduct into another
     *

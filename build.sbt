@@ -33,7 +33,7 @@ val settings = Seq(
     "-Ywarn-unused:locals",
     "-Ywarn-macros:after",
     "-Xfatal-warnings",
-    "-language:higherKinds"
+    "-language:higherKinds",
   ),
   scalacOptions ++= (
     if (scalaVersion.value >= "2.13")

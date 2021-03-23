@@ -102,6 +102,31 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
   ](f: Tree): Tree = {
     val To = weakTypeOf[To]
     val Inst = weakTypeOf[Inst]
+    if (Inst.typeSymbol.isJavaEnum) {
+      c.abort(c.enclosingPosition, "Use `withCoproductInstance(from, to)` to customize Java enum mapping")
+    }
+    c.prefix.tree
+      .addInstance(Inst.typeSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
+      .refineConfig(coproductInstanceT.applyTypeArgs(Inst, To, weakTypeOf[C]))
+  }
+
+  def withCoproductInstanceImpl2[
+    From: WeakTypeTag,
+    To: WeakTypeTag,
+    Inst: WeakTypeTag,
+    C: WeakTypeTag
+  ](from: Tree, to: Tree): Tree = {
+    val To = weakTypeOf[To]
+    val InstWT = weakTypeOf[Inst]
+    val Inst = if (InstWT.typeSymbol.isJavaEnum) {
+      from match {
+        case Literal(Constant(from: TermSymbol)) => from.typeSignature
+        case _ => c.abort(c.enclosingPosition, "Provide a single constant literal!")
+      }
+    } else {
+      InstWT
+    }
+    val f = q"(_: $Inst) => $to"
     c.prefix.tree
       .addInstance(Inst.typeSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
       .refineConfig(coproductInstanceT.applyTypeArgs(Inst, To, weakTypeOf[C]))
