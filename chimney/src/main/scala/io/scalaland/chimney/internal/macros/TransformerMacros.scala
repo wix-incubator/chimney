@@ -528,8 +528,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                     )
                   }
                 case _ if
-                  (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
-                  (isOneof(instTpe) && instName == oneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                  (isScalaPBEnum(instTpe) && instName == scalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
+                  (isScalaPBOneof(instTpe) && instName == scalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
                     Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
                 case _ =>
                   Left {
@@ -545,22 +545,24 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             }
         }
 
-        if (instanceClauses.forall(_.isRight)) {
-          val clauses = instanceClauses.collect { case Right(clause) => clause }
-          Right {
-            q"$srcPrefixTree match { case ..$clauses }"
-          }
-        } else {
-          Left {
-            instanceClauses.collect { case Left(derivationErrors) => derivationErrors }.flatten
-          }
-        }
+        buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
       }
 
   }
 
-  private def rawInstanceName(name: String): String =
-    name.filterNot(_ == '_').toLowerCase()
+  private def buildMatchingBlockFromClauses(instanceClauses: List[Either[Seq[DerivationError], Tree]],
+                                            srcPrefixTree: Tree): Either[List[DerivationError], Tree] = {
+    if (instanceClauses.forall(_.isRight)) {
+      val clauses = instanceClauses.collect { case Right(clause) => clause }
+      Right {
+        q"$srcPrefixTree match { case ..$clauses }"
+      }
+    } else {
+      Left {
+        instanceClauses.collect { case Left(derivationErrors) => derivationErrors }.flatten
+      }
+    }
+  }
 
   def resolveCoproductInstance(
       srcPrefixTree: Tree,
@@ -624,7 +626,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     def hasValueField(t: Type) = t.member(oneofValueField) != NoSymbol
 
     val targets = {
-      val adjustedTo = if (isOneof(To) && !hasValueField(From)) getValueField(To) else To
+      val adjustedTo = if (isScalaPBOneof(To) && !hasValueField(From)) getValueField(To) else To
       adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
     }
 
@@ -646,9 +648,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       /** Proto oneOf to sealed trait enum support
        *  @see https://github.com/wix-private/server-infra/issues/14909
        */
-      if (isOneof(From) && !hasValueField(To))
+      if (isScalaPBOneof(From) && !hasValueField(To))
         mkTransformer(getValueField(From), q"$srcPrefixTree.value", To)
-      else if (isOneof(To) && !hasValueField(From))
+      else if (isScalaPBOneof(To) && !hasValueField(From))
         mkTransformer(From, srcPrefixTree, getValueField(To))
       else
         mkTransformer(From, srcPrefixTree, To)
@@ -657,7 +659,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      if (isOneof(To) && !hasValueField(From))
+      if (isScalaPBOneof(To) && !hasValueField(From))
         mkTransformerBodyTree(getValueField(To), targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, Seq(mkNewClass(getValueField(To), args)))
         }
@@ -913,9 +915,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"
 
-  private def isEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
-  private val enumUnrecognizedInstanceName: String = "Unrecognized"
+  private val scalaPBEnumUnrecognizedInstanceName: String = "Unrecognized"
 
-  private def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
-  private val oneofEmptyInstanceName: String = "Empty"
+  private val scalaPBOneofEmptyInstanceName: String = "Empty"
 }
