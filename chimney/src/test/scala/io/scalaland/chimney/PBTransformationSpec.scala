@@ -4,7 +4,6 @@ import utest._
 import io.scalaland.chimney.examples.addressbook
 import io.scalaland.chimney.examples.order
 import io.scalaland.chimney.examples.pb
-import io.scalaland.chimney.internal.CoproductInstanceNotFoundException
 
 object PBTransformationSpec extends TestSuite {
 
@@ -50,16 +49,6 @@ object PBTransformationSpec extends TestSuite {
       (addressbook.WORK: addressbook.PhoneType)
         .transformInto[pb.addressbook.PhoneType] ==>
         pb.addressbook.PhoneType.WORK
-    }
-
-    "handle transformation of proto with 'Unrecognized' instance properly" - {
-      (pb.addressbook.PhoneType.HOME: pb.addressbook.PhoneType).transformInto[addressbook.PhoneType] ==> addressbook.HOME
-
-      val ex = intercept[CoproductInstanceNotFoundException](
-        (pb.addressbook.PhoneType.Unrecognized(1): pb.addressbook.PhoneType).transformInto[addressbook.PhoneType]
-      )
-      ex.sourceTypeName ==> "io.scalaland.chimney.examples.pb.addressbook.PhoneType.Unrecognized"
-      ex.targetTypeName ==> "io.scalaland.chimney.examples.addressbook.PhoneType"
     }
 
     "transform bigger case classes" - {

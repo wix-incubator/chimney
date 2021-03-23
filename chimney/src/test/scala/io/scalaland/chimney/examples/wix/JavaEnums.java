@@ -1,4 +1,4 @@
-package io.scalaland.chimney.examples;
+package io.scalaland.chimney.examples.wix;
 
 public interface JavaEnums {
     enum JavaColors {
