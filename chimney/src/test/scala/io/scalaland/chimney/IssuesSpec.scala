@@ -237,8 +237,8 @@ object IssuesSpec extends TestSuite {
       compileError("Foo(None, FooNested(None)).into[Bar].transform")
         .check(
           "",
-          "derivation from foo.maybeString: scala.Option to scala.collection.immutable.Seq is not supported in Chimney!",
-          "derivation from foo.nested.num: scala.Option to java.lang.String is not supported in Chimney!"
+          "derivation from foo.maybeString: scala.Option[Set[String]] to scala.collection.immutable.Seq[String] is not supported in Chimney!",
+          "derivation from foo.nested.num: scala.Option[Int] to java.lang.String is not supported in Chimney!"
         )
     }
 
