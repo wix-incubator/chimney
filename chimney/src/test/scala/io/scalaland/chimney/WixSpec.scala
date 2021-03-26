@@ -179,12 +179,8 @@ object WixSpec extends TestSuite {
           implicit def t[A]: Transformer[numbers.long.NumScale[A], JavaNumbers.NumScale] =
             Transformer
               .define[numbers.long.NumScale[A], JavaNumbers.NumScale]
-              .withCoproductInstance[numbers.long.Milliard[A]]((_: numbers.long.Milliard[A]) =>
-                JavaNumbers.NumScale.Zero
-              )
-              .withCoproductInstance[numbers.long.Billiard[A]]((_: numbers.long.Billiard[A]) =>
-                JavaNumbers.NumScale.Zero
-              )
+              .withCoproductInstance((_: numbers.long.Milliard[A]) => JavaNumbers.NumScale.Zero)
+              .withCoproductInstance((_: numbers.long.Billiard[A]) => JavaNumbers.NumScale.Zero)
               .buildTransformer
 
           (numbers.long.Zero: numbers.long.NumScale[Nothing])
