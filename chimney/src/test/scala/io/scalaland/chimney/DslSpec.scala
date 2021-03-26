@@ -1166,6 +1166,19 @@ object DslSpec extends TestSuite {
 
       intercept[CustomException](transformerInto.transform)
     }
+
+    "error messages should include type parameters of generic types" - {
+      case class Source(name: Option[String])
+      case class Target(name: String, age: Either[Seq[String], Option[Int]])
+
+      compileError("Source(None).transformInto[Target]")
+        .check("",
+          "name: java.lang.String - can't derive transformation from name: scala.Option[String] in source type io.scalaland.chimney.DslSpec.Source",
+          "age: scala.util.Either[Seq[String], Option[Int]] - no accessor",
+
+          "derivation from source.name: scala.Option[String] to java.lang.String is not supported"
+        )
+    }
   }
 }
 

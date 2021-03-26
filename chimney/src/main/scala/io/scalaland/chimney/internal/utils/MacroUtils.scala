@@ -100,6 +100,11 @@ trait MacroUtils extends CompanionUtils {
         // $COVERAGE-ON$
       }
     }
+
+    def fullNameWithTypeArgs: String = {
+      val typeArgsStr = if (t.typeArgs.nonEmpty) t.typeArgs.mkString("[", ", ", "]") else ""
+      t.typeSymbol.fullName + typeArgsStr
+    }
   }
 
   implicit class SymbolOps(s: Symbol) {

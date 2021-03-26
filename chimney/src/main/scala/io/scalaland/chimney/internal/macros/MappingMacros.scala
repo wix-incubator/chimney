@@ -26,8 +26,8 @@ trait MappingMacros extends Model with TransformerConfigSupport {
           IncompatibleSourceTuple(
             tupleElems.size,
             targetFields.size,
-            From.typeSymbol.fullName,
-            To.typeSymbol.fullName
+            From.fullNameWithTypeArgs,
+            To.fullNameWithTypeArgs
           )
         )
       }
