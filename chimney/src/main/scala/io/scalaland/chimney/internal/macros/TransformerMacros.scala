@@ -203,7 +203,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       .getOrElse {
         // $COVERAGE-OFF$
         Left {
-          Seq(CantFindValueClassMember(From.typeSymbol.name.toString, To.typeSymbol.name.toString))
+          Seq(CantFindValueClassMember(From.fullNameWithTypeArgs, To.fullNameWithTypeArgs))
         }
         // $COVERAGE-ON$
       }
@@ -522,8 +522,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                     Seq(
                       AmbiguousCoproductInstance(
                         instName,
-                        From.typeSymbol.fullName,
-                        To.typeSymbol.fullName
+                        From.fullNameWithTypeArgs,
+                        To.fullNameWithTypeArgs
                       )
                     )
                   }
@@ -536,8 +536,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                     Seq(
                       CantFindCoproductInstanceTransformer(
                         instSymbol.fullName,
-                        From.typeSymbol.fullName,
-                        To.typeSymbol.fullName
+                        From.fullNameWithTypeArgs,
+                        To.fullNameWithTypeArgs
                       )
                     )
                   }
@@ -703,9 +703,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
           Seq(
             MissingAccessor(
               fieldName = target.name,
-              fieldTypeName = target.tpe.typeSymbol.fullName,
-              sourceTypeName = From.typeSymbol.fullName,
-              targetTypeName = To.typeSymbol.fullName,
+              fieldTypeName = target.tpe.fullNameWithTypeArgs,
+              sourceTypeName = From.fullNameWithTypeArgs,
+              targetTypeName = To.fullNameWithTypeArgs,
               defAvailable = accessor == AccessorResolution.DefAvailable
             )
           )
@@ -731,10 +731,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             case AccessorResolution.Resolved(symbol: MethodSymbol, _) =>
               erroredTargets(target) :+ MissingTransformer(
                 fieldName = target.name,
-                sourceFieldTypeName = symbol.resultTypeIn(From).typeSymbol.fullName,
-                targetFieldTypeName = target.tpe.typeSymbol.fullName,
-                sourceTypeName = From.typeSymbol.fullName,
-                targetTypeName = To.typeSymbol.fullName
+                sourceFieldTypeName = symbol.resultTypeIn(From).fullNameWithTypeArgs,
+                targetFieldTypeName = target.tpe.fullNameWithTypeArgs,
+                sourceTypeName = From.fullNameWithTypeArgs,
+                targetTypeName = To.fullNameWithTypeArgs
               )
             case _ => erroredTargets(target)
           }
@@ -885,8 +885,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       Seq(
         NotSupportedDerivation(
           toFieldName(srcPrefixTree),
-          fromTpe.typeSymbol.fullName.toString,
-          toTpe.typeSymbol.fullName.toString
+          fromTpe.fullNameWithTypeArgs,
+          toTpe.fullNameWithTypeArgs
         )
       )
     }

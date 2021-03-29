@@ -453,7 +453,7 @@ object DslSpec extends TestSuite {
         (None: Option[String]).transformInto[Option[String]] ==> None
         Option("abc").transformInto[Option[String]] ==> Some("abc")
         compileError("""Some("foobar").into[None.type].transform""")
-          .check("", "derivation from some: scala.Some to scala.None is not supported in Chimney!")
+          .check("", "derivation from some: scala.Some[String] to scala.None is not supported in Chimney!")
         case class BarNone(value: None.type)
         compileError("""Foo("a").into[BarNone].transform""")
           .check(
@@ -1018,7 +1018,7 @@ object DslSpec extends TestSuite {
         """)
           .check(
             "",
-            "source tuple scala.Tuple2 is of arity 2, while target type io.scalaland.chimney.DslSpec.Foo is of arity 3; they need to be equal!"
+            "source tuple scala.Tuple2[Int, String] is of arity 2, while target type io.scalaland.chimney.DslSpec.Foo is of arity 3; they need to be equal!"
           )
 
         compileError("""
@@ -1031,7 +1031,7 @@ object DslSpec extends TestSuite {
         """)
           .check(
             "",
-            "source tuple io.scalaland.chimney.DslSpec.Foo is of arity 3, while target type scala.Tuple5 is of arity 5; they need to be equal!"
+            "source tuple io.scalaland.chimney.DslSpec.Foo is of arity 3, while target type scala.Tuple5[Double, String, Int, Float, Boolean] is of arity 5; they need to be equal!"
           )
 
         compileError("""
@@ -1165,6 +1165,19 @@ object DslSpec extends TestSuite {
         ).enableUnsafeOption
 
       intercept[CustomException](transformerInto.transform)
+    }
+
+    "error messages should include type parameters of generic types" - {
+      case class Source(name: Option[String])
+      case class Target(name: String, age: Either[Seq[String], Option[Int]])
+
+      compileError("Source(None).transformInto[Target]")
+        .check("",
+          "name: java.lang.String - can't derive transformation from name: scala.Option[String] in source type io.scalaland.chimney.DslSpec.Source",
+          "age: scala.util.Either[Seq[String], Option[Int]] - no accessor",
+
+          "derivation from source.name: scala.Option[String] to java.lang.String is not supported"
+        )
     }
   }
 }
