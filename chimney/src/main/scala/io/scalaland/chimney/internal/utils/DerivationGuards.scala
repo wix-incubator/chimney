@@ -9,6 +9,10 @@ trait DerivationGuards {
 
   import c.universe._
 
+  def isScalaPBEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
+
+  def isScalaPBOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
+
   def isSubtype(from: Type, to: Type): Boolean = {
     from <:< to
   }

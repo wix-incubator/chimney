@@ -477,6 +477,27 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       }
   }
 
+  private def getSealedHierarchyInstances(hierarchy: Type): Map[String, List[Symbol]] =
+    if (hierarchy.typeSymbol.isJavaEnum) {
+      hierarchy.companion
+        .decls
+        .filter(_.isJavaEnum)
+        .groupBy(_.name.toCanonicalName)
+        .mapValues(_.toList)
+    } else {
+      hierarchy.typeSymbol.classSymbolOpt.get
+        .subclasses
+        .map(_.typeInSealedParent(hierarchy).typeSymbol)
+        .groupBy(_.name.toCanonicalName)
+    }
+
+  def symbolToType(s: Symbol, parent: Type): Type =
+    if (s.isJavaEnum) {
+      s.typeSignature
+    } else {
+      s.typeInSealedParent(parent)
+    }
+
   def expandSealedClasses(
       srcPrefixTree: Tree,
       config: TransformerConfig
@@ -487,80 +508,89 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         Right(instanceTree)
       }
       .getOrElse {
-        val fromCS = From.typeSymbol.classSymbolOpt.get
-        val toCS = To.typeSymbol.classSymbolOpt.get
+        val fromInstances = getSealedHierarchyInstances(From)
+        val toInstances = getSealedHierarchyInstances(To)
 
-        val fromInstances = fromCS.subclasses.map(_.typeInSealedParent(From))
-        val toInstances = toCS.subclasses.map(_.typeInSealedParent(To))
+        val instanceClauses = fromInstances.flatMap { case (canonicalName, instSymbols) =>
+          instSymbols.map { instSymbol =>
+            val instName = instSymbol.name.toString
+            val instTpe = symbolToType(instSymbol, From)
 
-        val targetNamedInstances = toInstances.groupBy(t => rawInstanceName(t.typeSymbol.name.toString))
-
-        val instanceClauses = fromInstances.map { instTpe =>
-          val instName = instTpe.typeSymbol.name.toString
-
-          resolveCoproductInstance(srcPrefixTree, instTpe, To, config)
-            .map { instanceTree =>
-              Right(cq"_: $instTpe => $instanceTree")
-            }
-            .getOrElse {
-              val instSymbol = instTpe.typeSymbol
-              targetNamedInstances.getOrElse(rawInstanceName(instName), Nil) match {
-                case List(matchingTargetTpe)
-                    if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetTpe.typeSymbol.isModuleClass =>
-                  val tree = mkTransformerBodyTree0(config) {
-                    q"${matchingTargetTpe.typeSymbol.asClass.module}"
-                  }
-                  Right(cq"_: ${instSymbol.asType} => $tree")
-                case List(matchingTargetTpe) if instSymbol.isCaseClass && matchingTargetTpe.typeSymbol.isCaseClass =>
-                  val fn = freshTermName(instName)
-                  expandDestinationCaseClass(Ident(fn), config.rec)(instTpe, matchingTargetTpe)
-                    .map { innerTransformerTree =>
-                      cq"$fn: $instTpe => $innerTransformerTree"
+            resolveCoproductInstance(srcPrefixTree, instTpe, To, config)
+              .map { instanceTree =>
+                Right(cq"_: $instTpe => $instanceTree")
+              }
+              .getOrElse {
+                toInstances.getOrElse(canonicalName, Nil) match {
+                  case List(matchingTargetSymbol)
+                    if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetSymbol.isModuleClass =>
+                    val tree = mkTransformerBodyTree0(config) {
+                      q"${matchingTargetSymbol.asClass.module}"
                     }
-                case _ :: _ :: _ =>
-                  Left {
-                    Seq(
-                      AmbiguousCoproductInstance(
-                        instName,
-                        From.fullNameWithTypeArgs,
-                        To.fullNameWithTypeArgs
+                    Right(cq"_: ${instSymbol.asType} => $tree")
+                  case List(matchingTargetSymbol) if instSymbol.isCaseClass && matchingTargetSymbol.isCaseClass =>
+                    val fn = freshTermName(instName)
+                    expandDestinationCaseClass(Ident(fn), config.rec)(instTpe, matchingTargetSymbol.typeInSealedParent(To))
+                      .map { innerTransformerTree =>
+                        cq"$fn: $instTpe => $innerTransformerTree"
+                      }
+                  case List(matchingTargetSymbol) if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetSymbol.isJavaEnum => // sealed class may be parameterized
+                    Right(cq"_: $instTpe => $matchingTargetSymbol")
+                  case List(matchingTargetSymbol) if instSymbol.isJavaEnum && matchingTargetSymbol.isModuleClass => // we do not support mapping from java enum to case classes, only to objects
+                    // it is a bit too much of an effort to support java enum -> case class in general case as case class may carry properties, so we omit this by now
+                    val tree = mkTransformerBodyTree0(config) {
+                      q"${matchingTargetSymbol.asClass.module}"
+                    }
+                    Right(cq"_: $instSymbol => $tree")
+                  case List(matchingTargetSymbol) if instSymbol.isJavaEnum && matchingTargetSymbol.isJavaEnum =>
+                    Right(cq"_: $instSymbol => $matchingTargetSymbol")
+                  case _ :: _ :: _ =>
+                    Left {
+                      Seq(
+                        AmbiguousCoproductInstance(
+                          instName,
+                          From.fullNameWithTypeArgs,
+                          To.fullNameWithTypeArgs
+                        )
                       )
-                    )
-                  }
-                case _ if
-                  (isEnum(instTpe) && instName == enumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
-                  (isOneof(instTpe) && instName == oneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                    }
+                  case _ if
+                  (isScalaPBEnum(instTpe) && instName == scalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
+                    (isScalaPBOneof(instTpe) && instName == scalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
                     Right(cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})")
-                case _ =>
-                  Left {
-                    Seq(
-                      CantFindCoproductInstanceTransformer(
-                        instSymbol.fullName,
-                        From.fullNameWithTypeArgs,
-                        To.fullNameWithTypeArgs
+                  case _ =>
+                    Left {
+                      Seq(
+                        CantFindCoproductInstanceTransformer(
+                          instSymbol.fullName,
+                          From.fullNameWithTypeArgs,
+                          To.fullNameWithTypeArgs
+                        )
                       )
-                    )
-                  }
+                    }
+                }
               }
             }
-        }
+        }.toList
 
-        if (instanceClauses.forall(_.isRight)) {
-          val clauses = instanceClauses.collect { case Right(clause) => clause }
-          Right {
-            q"$srcPrefixTree match { case ..$clauses }"
-          }
-        } else {
-          Left {
-            instanceClauses.collect { case Left(derivationErrors) => derivationErrors }.flatten
-          }
-        }
+        buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
       }
 
   }
 
-  private def rawInstanceName(name: String): String =
-    name.filterNot(_ == '_').toLowerCase()
+  private def buildMatchingBlockFromClauses(instanceClauses: List[Either[Seq[DerivationError], Tree]],
+                                            srcPrefixTree: Tree): Either[List[DerivationError], Tree] = {
+    if (instanceClauses.forall(_.isRight)) {
+      val clauses = instanceClauses.collect { case Right(clause) => clause }
+      Right {
+        q"$srcPrefixTree match { case ..$clauses }"
+      }
+    } else {
+      Left {
+        instanceClauses.collect { case Left(derivationErrors) => derivationErrors }.flatten
+      }
+    }
+  }
 
   def resolveCoproductInstance(
       srcPrefixTree: Tree,
@@ -568,7 +598,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       To: Type,
       config: TransformerConfig
   ): Option[Tree] = {
-    if (config.wrapperType.isDefined && config.coproductInstancesF.contains((From.typeSymbol, To))) {
+    val coproductSymbol = From.coproductSymbol
+    if (config.wrapperType.isDefined && config.coproductInstancesF.contains((coproductSymbol, To))) {
       Some(
         mkCoproductInstance(
           config.transformerDefinitionPrefix,
@@ -578,7 +609,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
           config.wrapperType
         )
       )
-    } else if (config.coproductInstances.contains((From.typeSymbol, To))) {
+    } else if (config.coproductInstances.contains((coproductSymbol, To))) {
       Some(
         mkTransformerBodyTree0(config) {
           mkCoproductInstance(
@@ -624,7 +655,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     def hasValueField(t: Type) = t.member(oneofValueField) != NoSymbol
 
     val targets = {
-      val adjustedTo = if (isOneof(To) && !hasValueField(From)) getValueField(To) else To
+      val adjustedTo = if (isScalaPBOneof(To) && !hasValueField(From)) getValueField(To) else To
       adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
     }
 
@@ -646,9 +677,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       /** Proto oneOf to sealed trait enum support
        *  @see https://github.com/wix-private/server-infra/issues/14909
        */
-      if (isOneof(From) && !hasValueField(To))
+      if (isScalaPBOneof(From) && !hasValueField(To))
         mkTransformer(getValueField(From), q"$srcPrefixTree.value", To)
-      else if (isOneof(To) && !hasValueField(From))
+      else if (isScalaPBOneof(To) && !hasValueField(From))
         mkTransformer(From, srcPrefixTree, getValueField(To))
       else
         mkTransformer(From, srcPrefixTree, To)
@@ -657,7 +688,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      if (isOneof(To) && !hasValueField(From))
+      if (isScalaPBOneof(To) && !hasValueField(From))
         mkTransformerBodyTree(getValueField(To), targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, Seq(mkNewClass(getValueField(To), args)))
         }
@@ -913,9 +944,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"
 
-  private def isEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
-  private val enumUnrecognizedInstanceName: String = "Unrecognized"
+  private val scalaPBEnumUnrecognizedInstanceName: String = "Unrecognized"
 
-  private def isOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
-  private val oneofEmptyInstanceName: String = "Empty"
+  private val scalaPBOneofEmptyInstanceName: String = "Empty"
 }

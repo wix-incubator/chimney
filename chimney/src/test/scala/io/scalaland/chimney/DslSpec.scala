@@ -727,23 +727,6 @@ object DslSpec extends TestSuite {
           (colors3.Blue: colors3.Color).transformInto[colors2.Color] ==> colors2.Blue
           (colors3.Black: colors3.Color).transformInto[colors2.Color] ==> colors2.Black
         }
-
-        "transforming enum ignoring case" - {
-          (colors2.Red: colors2.Color).transformInto[colors4.Color] ==> colors4.RED
-          (colors2.Black: colors2.Color).transformInto[colors4.Color] ==> colors4.BLACK
-
-          (colors4.BLUE: colors4.Color).transformInto[colors2.Color] ==> colors2.Blue
-          (colors4.GREEN: colors4.Color).transformInto[colors2.Color] ==> colors2.Green
-        }
-
-
-        "transforming enum ignoring underscore" - {
-          (colorsUpperUndescore.BLOODY_RED: colorsUpperUndescore.Color).transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.BloodyRed
-          (colorsUpperUndescore.DARK_GREEN: colorsUpperUndescore.Color).transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.DarkGreen
-
-          (colorsUpperCamel.SkyBlue: colorsUpperCamel.Color).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SKY_BLUE
-          (colorsUpperCamel.SnowWhite: colorsUpperCamel.Color).transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SNOW_WHITE
-        }
       }
 
       "transforming non-isomorphic domains" - {
@@ -842,57 +825,6 @@ object DslSpec extends TestSuite {
           !error.msg.contains("coproduct instance Circle of io.scalaland.chimney.examples.shapes5.Shape is ambiguous")
         )
       }
-
-      "support scalapb-generated proto oneof" - {
-        val redCode = "dc143c"
-        val redName = "crimson"
-        val greenCode = "00ff00"
-        val blueCode = "0000ff"
-
-        "oneof -> sealed trait family" - {
-          (colorsnested1.Red(colorsnested1.RedInfo(redCode, redName)): colorsnested1.Color)
-            .transformInto[colorsnested2.Color] ==> colorsnested2.Red(redCode, redName)
-          (colorsnested1.Green(colorsnested1.GreenInfo(greenCode)): colorsnested1.Color)
-            .transformInto[colorsnested2.Color] ==> colorsnested2.Green(greenCode)
-          (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
-            .transformInto[colorsnested2.Color] ==> colorsnested2.Blue(blueCode)
-        }
-
-        "throw an exception if oneof Empty -> sealed trait family without Empty" - {
-          val ex = intercept[CoproductInstanceNotFoundException]((colorsnested1.Empty: colorsnested1.Color).transformInto[colorsnested2.Color])
-
-          ex.sourceTypeName ==> colorsnested1.Empty.getClass.getName.stripSuffix("$")
-          ex.targetTypeName ==> classOf[colorsnested2.Color].getName
-        }
-
-        "sealed trait family -> oneof" - {
-          (colorsnested2.Red(redCode, redName): colorsnested2.Color)
-            .transformInto[colorsnested1.Color] ==> colorsnested1.Red(colorsnested1.RedInfo(redCode, redName))
-          (colorsnested2.Green(greenCode): colorsnested2.Color)
-            .transformInto[colorsnested1.Color] ==> colorsnested1.Green(colorsnested1.GreenInfo(greenCode))
-          (colorsnested2.Blue(blueCode): colorsnested2.Color)
-            .transformInto[colorsnested1.Color] ==> colorsnested1.Blue(colorsnested1.BlueInfo(blueCode))
-        }
-
-        "oneof -> sealed trait family (with nested case class)" - {
-          (colorsnested1.Red(colorsnested1.RedInfo(redCode, redName)): colorsnested1.Color)
-            .transformInto[colorsnested3.Color] ==> colorsnested3.Red(colorsnested3.RedInfo(redCode, redName))
-          (colorsnested1.Green(colorsnested1.GreenInfo(greenCode)): colorsnested1.Color)
-            .transformInto[colorsnested3.Color] ==> colorsnested3.Green(colorsnested3.GreenInfo(greenCode))
-          (colorsnested1.Blue(colorsnested1.BlueInfo(blueCode)): colorsnested1.Color)
-            .transformInto[colorsnested3.Color] ==> colorsnested3.Blue(colorsnested3.BlueInfo(blueCode))
-        }
-
-        "sealed trait family -> oneof (with nested case class)" - {
-          (colorsnested3.Red(colorsnested3.RedInfo(redCode, redName)): colorsnested3.Color)
-            .transformInto[colorsnested1.Color] ==> colorsnested1.Red(colorsnested1.RedInfo(redCode, redName))
-          (colorsnested3.Green(colorsnested3.GreenInfo(greenCode)): colorsnested3.Color)
-            .transformInto[colorsnested1.Color] ==> colorsnested1.Green(colorsnested1.GreenInfo(greenCode))
-          (colorsnested3.Blue(colorsnested3.BlueInfo(blueCode)): colorsnested3.Color)
-            .transformInto[colorsnested1.Color] ==> colorsnested1.Blue(colorsnested1.BlueInfo(blueCode))
-        }
-      }
-
     }
 
     "support polymorphic source/target objects and modifiers" - {

@@ -33,7 +33,7 @@ val settings = Seq(
     "-Ywarn-unused:locals",
     "-Ywarn-macros:after",
     "-Xfatal-warnings",
-    "-language:higherKinds"
+    "-language:higherKinds",
   ),
   scalacOptions ++= (
     if (scalaVersion.value >= "2.13")
@@ -68,8 +68,8 @@ lazy val root = project
   .settings(settings: _*)
   .settings(publishSettings: _*)
   .settings(noPublishSettings: _*)
-  .aggregate(chimneyJVM, chimneyJS, chimneyCatsJVM, chimneyCatsJS)
-  .dependsOn(chimneyJVM, chimneyJS, chimneyCatsJVM, chimneyCatsJS)
+  .aggregate(chimneyJVM, chimneyCatsJVM)
+  .dependsOn(chimneyJVM, chimneyCatsJVM)
   .enablePlugins(SphinxPlugin, GhpagesPlugin)
   .settings(
     Sphinx / version := version.value,

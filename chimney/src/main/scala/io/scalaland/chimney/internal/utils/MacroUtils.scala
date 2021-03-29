@@ -12,6 +12,10 @@ trait MacroUtils extends CompanionUtils {
     def toNameConstant: Constant = Constant(n.decodedName.toString)
     def toNameLiteral: Literal = Literal(toNameConstant)
     def toSingletonTpe: ConstantType = c.internal.constantType(toNameConstant)
+    /**
+      * Canonical representation of a name, allowing matches of names across domains with different naming conventions
+      */
+    def toCanonicalName: String = n.toString.filterNot(_ == '_').trim().toLowerCase()
   }
 
   type TypeConstructorTag[F[_]] = WeakTypeTag[F[Unit]]
@@ -99,6 +103,11 @@ trait MacroUtils extends CompanionUtils {
           c.abort(c.enclosingPosition, "Collection types with more than 2 type arguments are not supported!")
         // $COVERAGE-ON$
       }
+    }
+
+    def coproductSymbol: Symbol = t match{
+      case c.universe.ConstantType(Constant(enumeration: TermSymbol)) => enumeration
+      case _ => t.typeSymbol
     }
 
     def fullNameWithTypeArgs: String = {
