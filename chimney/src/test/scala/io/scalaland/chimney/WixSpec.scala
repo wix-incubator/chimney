@@ -127,7 +127,7 @@ object WixSpec extends TestSuite {
         "with customization" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
             Transformer.define
-              .withCoproductInstance(JavaNumbers.NumScaleUppercase.TRILLION, JavaNumbers.NumScale.Zero)
+              .withCoproductValue(JavaNumbers.NumScaleUppercase.TRILLION, JavaNumbers.NumScale.Zero)
               .buildTransformer
 
           (JavaNumbers.NumScaleUppercase.ZERO: JavaNumbers.NumScaleUppercase)
@@ -164,13 +164,17 @@ object WixSpec extends TestSuite {
           implicit val t: Transformer[Colors, colors2.Color] =
             Transformer
               .define[Colors, colors2.Color]
-              .withCoproductInstance(Colors.Green, colors2.Red)
+              .withCoproductValue(Colors.Green, colors2.Red)
               .buildTransformer
 
           (JavaColors.Colors.Black: Colors).transformInto[colors2.Color] ==> colors2.Black
           (JavaColors.Colors.Blue: Colors).transformInto[colors2.Color] ==> colors2.Blue
           (JavaColors.Colors.Green: Colors).transformInto[colors2.Color] ==> colors2.Red
           (JavaColors.Colors.Red: Colors).transformInto[colors2.Color] ==> colors2.Red
+        }
+
+        "into DSL" - {
+          (JavaColors.Colors.Green: Colors).into[colors2.Color].withCoproductValue(Colors.Green, colors2.Red).transform ==> colors2.Red
         }
       }
 

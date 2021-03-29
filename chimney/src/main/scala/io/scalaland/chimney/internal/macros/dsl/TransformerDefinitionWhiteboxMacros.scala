@@ -103,14 +103,14 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
     val To = weakTypeOf[To]
     val Inst = weakTypeOf[Inst]
     if (Inst.typeSymbol.isJavaEnum) {
-      c.abort(c.enclosingPosition, "Use `withCoproductInstance(from, to)` to customize Java enum mapping")
+      c.abort(c.enclosingPosition, "Use `withCoproductValue(from, to)` to customize Java enum mapping")
     }
     c.prefix.tree
       .addInstance(Inst.typeSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
       .refineConfig(coproductInstanceT.applyTypeArgs(Inst, To, weakTypeOf[C]))
   }
 
-  def withCoproductInstanceImpl2[
+  def withCoproductValue[
     From: WeakTypeTag,
     To: WeakTypeTag,
     Inst: WeakTypeTag,
