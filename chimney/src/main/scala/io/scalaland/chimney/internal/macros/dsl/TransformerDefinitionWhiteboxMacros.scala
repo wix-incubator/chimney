@@ -101,13 +101,21 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
       C: WeakTypeTag
   ](f: Tree): Tree = {
     val To = weakTypeOf[To]
-    val Inst = weakTypeOf[Inst]
-    if (Inst.typeSymbol.isJavaEnum) {
-      c.abort(c.enclosingPosition, "Use `withCoproductValue(from, to)` to customize Java enum mapping")
+    val InstWT = weakTypeOf[Inst]
+    val (instType, instSymbol) = if (InstWT.typeSymbol.isJavaEnum) {
+      val Function(List(ValDef(_, _, lhs: TypeTree, _)), _) = f
+      lhs.original match {
+        case SingletonTypeTree(Select(t, n)) if t.isTerm =>
+          InstWT.companion.decls.filter(_.name == n).map(s => s.typeInSealedParent(InstWT) -> s).head
+        case _ => InstWT -> InstWT.typeSymbol
+      }
+    } else {
+      InstWT -> InstWT.typeSymbol
     }
+
     c.prefix.tree
-      .addInstance(Inst.typeSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
-      .refineConfig(coproductInstanceT.applyTypeArgs(Inst, To, weakTypeOf[C]))
+      .addInstance(instSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
+      .refineConfig(coproductInstanceT.applyTypeArgs(instType, To, weakTypeOf[C]))
   }
 
   def withCoproductValue[
@@ -117,19 +125,19 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
     C: WeakTypeTag
   ](from: Tree, to: Tree): Tree = {
     val To = weakTypeOf[To]
-    val InstWT = weakTypeOf[Inst]
-    val Inst = if (InstWT.typeSymbol.isJavaEnum) {
+    val Inst = weakTypeOf[Inst]
+    val (instType, instSymbol) = if (Inst.typeSymbol.isJavaEnum) {
       from match {
-        case Literal(Constant(from: TermSymbol)) => from.typeSignature
+        case Literal(Constant(from: TermSymbol)) => from.typeSignature -> from
         case _ => c.abort(c.enclosingPosition, "Provide a single constant literal!")
       }
     } else {
-      InstWT
+      Inst -> Inst.typeSymbol
     }
-    val f = q"(_: $Inst) => $to"
+    val f = q"(_: $instType) => $to"
     c.prefix.tree
-      .addInstance(Inst.typeSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
-      .refineConfig(coproductInstanceT.applyTypeArgs(Inst, To, weakTypeOf[C]))
+      .addInstance(instSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
+      .refineConfig(coproductInstanceT.applyTypeArgs(instType, To, weakTypeOf[C]))
   }
 
   def withCoproductInstanceFImpl[

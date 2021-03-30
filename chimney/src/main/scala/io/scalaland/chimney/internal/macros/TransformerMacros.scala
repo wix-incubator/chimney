@@ -491,13 +491,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         .groupBy(_.name.toCanonicalName)
     }
 
-  def symbolToType(s: Symbol, parent: Type): Type =
-    if (s.isJavaEnum) {
-      s.typeSignature
-    } else {
-      s.typeInSealedParent(parent)
-    }
-
   def expandSealedClasses(
       srcPrefixTree: Tree,
       config: TransformerConfig
@@ -514,7 +507,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         val instanceClauses = fromInstances.flatMap { case (canonicalName, instSymbols) =>
           instSymbols.map { instSymbol =>
             val instName = instSymbol.name.toString
-            val instTpe = symbolToType(instSymbol, From)
+            val instTpe = instSymbol.typeInSealedParent(From)
 
             resolveCoproductInstance(srcPrefixTree, instTpe, To, config)
               .map { instanceTree =>
@@ -604,7 +597,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         mkCoproductInstance(
           config.transformerDefinitionPrefix,
           srcPrefixTree,
-          From.typeSymbol,
+          coproductSymbol,
           To,
           config.wrapperType
         )
@@ -615,7 +608,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
           mkCoproductInstance(
             config.transformerDefinitionPrefix,
             srcPrefixTree,
-            From.typeSymbol,
+            coproductSymbol,
             To,
             None
           )

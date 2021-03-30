@@ -1,5 +1,13 @@
 package io.scalaland.chimney.examples.wix
 
+package richcolors {
+  sealed trait RichColor
+  case object JetBlack extends RichColor
+  case object SalmonRed extends RichColor
+  case object SeawaveGreen extends RichColor
+  case object SkyBlue extends RichColor
+}
+
 package colors4 {
   sealed trait Color
   case object RED extends Color
