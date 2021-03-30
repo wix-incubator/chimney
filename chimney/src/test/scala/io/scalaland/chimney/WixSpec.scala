@@ -120,6 +120,9 @@ object WixSpec extends TestSuite {
             .withCoproductInstance{_: JavaColors.Colors.Blue.type => richcolors.SkyBlue}
             .buildTransformer
         t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
+        t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
+        t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
+        t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
       }
 
       "allow `withCoproductInstance` with java enum type and total function" - {
@@ -134,6 +137,9 @@ object WixSpec extends TestSuite {
             }
             .buildTransformer
         t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
+        t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
+        t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
+        t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
       }
 
       "transform java enum into java enum" - {
