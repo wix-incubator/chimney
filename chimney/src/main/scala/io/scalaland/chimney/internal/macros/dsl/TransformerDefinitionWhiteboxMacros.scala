@@ -101,16 +101,19 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
       C: WeakTypeTag
   ](f: Tree): Tree = {
     val To = weakTypeOf[To]
-    val InstWT = weakTypeOf[Inst]
-    val (instType, instSymbol) = if (InstWT.typeSymbol.isJavaEnum) {
+    val Inst = weakTypeOf[Inst]
+    val (instType, instSymbol) = if (Inst.typeSymbol.isJavaEnum) {
       val Function(List(ValDef(_, _, lhs: TypeTree, _)), _) = f
       lhs.original match {
+        // java enum value in Scala 2.13
+        case SingletonTypeTree(Literal(Constant(t: TermSymbol))) => t.typeInSealedParent(Inst) -> t
+        // java enum value in Scala 2.12
         case SingletonTypeTree(Select(t, n)) if t.isTerm =>
-          InstWT.companion.decls.filter(_.name == n).map(s => s.typeInSealedParent(InstWT) -> s).head
-        case _ => InstWT -> InstWT.typeSymbol
+          Inst.companion.decls.filter(_.name == n).map(s => s.typeInSealedParent(Inst) -> s).head
+        case _ => Inst -> Inst.typeSymbol
       }
     } else {
-      InstWT -> InstWT.typeSymbol
+      Inst -> Inst.typeSymbol
     }
 
     c.prefix.tree
