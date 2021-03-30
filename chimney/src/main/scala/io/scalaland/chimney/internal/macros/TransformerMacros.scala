@@ -526,8 +526,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                         instTpe,
                         matchingTargetSymbol.typeInSealedParent(To)
                       ).map { innerTransformerTree =>
-                          cq"$fn: $instTpe => $innerTransformerTree"
-                        }
+                        cq"$fn: $instTpe => $innerTransformerTree"
+                      }
                     case List(matchingTargetSymbol)
                         if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetSymbol.isJavaEnum => // sealed class may be parameterized
                       Right(cq"_: $instTpe => $matchingTargetSymbol")

@@ -14,25 +14,13 @@ jobs:
     strategy:
       matrix:
         scala: [2.12.12, 2.13.3]
-        jvm: [openjdk@8, openjdk@1.11]
+        jvm: [openjdk@1.11]
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v2.3.4
-      - name: Cache .jabba
-        id: cache-jabba
-        uses: actions/cache@v2.1.4
-        with:
-          path: ~/.jabba
-          key: ${{ runner.os }}-jabba
-      - name: Cache .sbt
-        id: cache-sbt
-        uses: actions/cache@v2.1.4
-        with:
-          path: ~/.sbt
-          key: ${{ runner.os }}-sbt
-      - name: Set up ${{ matrix.jvm }}
-        uses: olafurpg/setup-scala@v10
+      - uses: actions/checkout@v2
+      - uses: coursier/cache-action@v6
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: ${{ matrix.jvm }}
       - name: Clean, Check code formatting, compile, test, generate coverage report
