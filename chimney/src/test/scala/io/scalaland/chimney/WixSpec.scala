@@ -110,7 +110,34 @@ object WixSpec extends TestSuite {
     }
 
     "support java enum" - {
+      "allow `withCoproductInstance` with java enum values" - {
+        implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
+          Transformer
+            .define[JavaColors.Colors, richcolors.RichColor]
+            .withCoproductInstance{_: JavaColors.Colors.Black.type => richcolors.JetBlack}
+            .withCoproductInstance{_: JavaColors.Colors.Red.type => richcolors.SalmonRed}
+            .withCoproductInstance{_: JavaColors.Colors.Green.type => richcolors.SeawaveGreen}
+            .withCoproductInstance{_: JavaColors.Colors.Blue.type => richcolors.SkyBlue}
+            .buildTransformer
+        t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
+      }
+
+      "allow `withCoproductInstance` with java enum type and total function" - {
+        implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
+          Transformer
+            .define[JavaColors.Colors, richcolors.RichColor]
+            .withCoproductInstance[JavaColors.Colors] {
+              case JavaColors.Colors.Black => richcolors.JetBlack
+              case JavaColors.Colors.Red => richcolors.SalmonRed
+              case JavaColors.Colors.Green => richcolors.SeawaveGreen
+              case JavaColors.Colors.Blue => richcolors.SkyBlue
+            }
+            .buildTransformer
+        t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
+      }
+
       "transform java enum into java enum" - {
+
         "by canonical name" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
             Transformer.define.buildTransformer
@@ -124,6 +151,7 @@ object WixSpec extends TestSuite {
           (JavaNumbers.NumScaleUppercase.TRILLION: JavaNumbers.NumScaleUppercase)
             .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Trillion
         }
+
         "with customization" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
             Transformer.define

@@ -157,11 +157,15 @@ trait MacroUtils extends CompanionUtils {
     def typeInSealedParent(parentTpe: Type): Type = {
       s.typeSignature // Workaround for <https://issues.scala-lang.org/browse/SI-7755>
 
-      val sEta = s.asType.toType.etaExpand
-      sEta.finalResultType.substituteTypes(
-        sEta.baseType(parentTpe.typeSymbol).typeArgs.map(_.typeSymbol),
-        parentTpe.typeArgs
-      )
+      if (s.isJavaEnum) {
+        s.typeSignature
+      } else {
+        val sEta = s.asType.toType.etaExpand
+        sEta.finalResultType.substituteTypes(
+          sEta.baseType(parentTpe.typeSymbol).typeArgs.map(_.typeSymbol),
+          parentTpe.typeArgs
+        )
+      }
     }
   }
 
