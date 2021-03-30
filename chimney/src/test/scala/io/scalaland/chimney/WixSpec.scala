@@ -154,8 +154,8 @@ object WixSpec extends TestSuite {
 
         "with customization" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
-            Transformer.define
-              .withCoproductValue(JavaNumbers.NumScaleUppercase.TRILLION, JavaNumbers.NumScale.Zero)
+            Transformer.define[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale]
+              .withCoproductInstance { _: JavaNumbers.NumScaleUppercase.TRILLION.type => JavaNumbers.NumScale.Zero }
               .buildTransformer
 
           (JavaNumbers.NumScaleUppercase.ZERO: JavaNumbers.NumScaleUppercase)
@@ -192,7 +192,7 @@ object WixSpec extends TestSuite {
           implicit val t: Transformer[Colors, colors2.Color] =
             Transformer
               .define[Colors, colors2.Color]
-              .withCoproductValue(Colors.Green, colors2.Red)
+              .withCoproductInstance { _: Colors.Green.type => colors2.Red }
               .buildTransformer
 
           (JavaColors.Colors.Black: Colors).transformInto[colors2.Color] ==> colors2.Black
@@ -201,9 +201,6 @@ object WixSpec extends TestSuite {
           (JavaColors.Colors.Red: Colors).transformInto[colors2.Color] ==> colors2.Red
         }
 
-        "into DSL" - {
-          (JavaColors.Colors.Green: Colors).into[colors2.Color].withCoproductValue(Colors.Green, colors2.Red).transform ==> colors2.Red
-        }
       }
 
       "transform sealed hierarchy into java enum" - {

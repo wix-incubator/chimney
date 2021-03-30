@@ -118,28 +118,6 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
       .refineConfig(coproductInstanceT.applyTypeArgs(instType, To, weakTypeOf[C]))
   }
 
-  def withCoproductValue[
-    From: WeakTypeTag,
-    To: WeakTypeTag,
-    Inst: WeakTypeTag,
-    C: WeakTypeTag
-  ](from: Tree, to: Tree): Tree = {
-    val To = weakTypeOf[To]
-    val Inst = weakTypeOf[Inst]
-    val (instType, instSymbol) = if (Inst.typeSymbol.isJavaEnum) {
-      from match {
-        case Literal(Constant(from: TermSymbol)) => from.typeSignature -> from
-        case _ => c.abort(c.enclosingPosition, "Provide a single constant literal!")
-      }
-    } else {
-      Inst -> Inst.typeSymbol
-    }
-    val f = q"(_: $instType) => $to"
-    c.prefix.tree
-      .addInstance(instSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
-      .refineConfig(coproductInstanceT.applyTypeArgs(instType, To, weakTypeOf[C]))
-  }
-
   def withCoproductInstanceFImpl[
       F[+_],
       From: WeakTypeTag,
