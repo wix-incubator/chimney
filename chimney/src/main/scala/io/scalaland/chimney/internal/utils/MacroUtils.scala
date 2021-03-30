@@ -12,6 +12,7 @@ trait MacroUtils extends CompanionUtils {
     def toNameConstant: Constant = Constant(n.decodedName.toString)
     def toNameLiteral: Literal = Literal(toNameConstant)
     def toSingletonTpe: ConstantType = c.internal.constantType(toNameConstant)
+
     /**
       * Canonical representation of a name, allowing matches of names across domains with different naming conventions
       */
@@ -105,9 +106,9 @@ trait MacroUtils extends CompanionUtils {
       }
     }
 
-    def coproductSymbol: Symbol = t match{
+    def coproductSymbol: Symbol = t match {
       case c.universe.ConstantType(Constant(enumeration: TermSymbol)) => enumeration
-      case _ => t.typeSymbol
+      case _                                                          => t.typeSymbol
     }
 
     def fullNameWithTypeArgs: String = {

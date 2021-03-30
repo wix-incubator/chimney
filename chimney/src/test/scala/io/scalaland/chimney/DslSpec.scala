@@ -1086,15 +1086,14 @@ object DslSpec extends TestSuite {
 
       val source: Option[String] = None
 
-      val transformerInto = new TransformerInto[
-        Option[String],
-        String,
-        TransformerCfg.Empty,
-        TransformerFlags.Enable[TransformerFlags.UnsafeOption, TransformerFlags.Default]](
-          source,
-          new TransformerDefinition(Map.empty, Map.empty),
-          mapper
-        ).enableUnsafeOption
+      val transformerInto = new TransformerInto[Option[String], String, TransformerCfg.Empty, TransformerFlags.Enable[
+        TransformerFlags.UnsafeOption,
+        TransformerFlags.Default
+      ]](
+        source,
+        new TransformerDefinition(Map.empty, Map.empty),
+        mapper
+      ).enableUnsafeOption
 
       intercept[CustomException](transformerInto.transform)
     }
@@ -1104,10 +1103,10 @@ object DslSpec extends TestSuite {
       case class Target(name: String, age: Either[Seq[String], Option[Int]])
 
       compileError("Source(None).transformInto[Target]")
-        .check("",
+        .check(
+          "",
           "name: java.lang.String - can't derive transformation from name: scala.Option[String] in source type io.scalaland.chimney.DslSpec.Source",
           "age: scala.util.Either[Seq[String], Option[Int]] - no accessor",
-
           "derivation from source.name: scala.Option[String] to java.lang.String is not supported"
         )
     }

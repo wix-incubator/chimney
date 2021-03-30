@@ -50,10 +50,10 @@ object WixSpec extends TestSuite {
 
     "support scalapb-generated proto oneof" - {
       "oneof -> sealed trait family" - {
-        val redCode   = "dc143c"
-        val redName   = "crimson"
+        val redCode = "dc143c"
+        val redName = "crimson"
         val greenCode = "00ff00"
-        val blueCode  = "0000ff"
+        val blueCode = "0000ff"
 
         (colorsnested1.Red(colorsnested1.RedInfo(redCode, redName)): colorsnested1.Color)
           .transformInto[colorsnested2.Color] ==> colorsnested2.Red(redCode, redName)
@@ -73,10 +73,10 @@ object WixSpec extends TestSuite {
       }
 
       "sealed trait family -> oneof" - {
-        val redCode   = "dc143c"
-        val redName   = "crimson"
+        val redCode = "dc143c"
+        val redName = "crimson"
         val greenCode = "00ff00"
-        val blueCode  = "0000ff"
+        val blueCode = "0000ff"
 
         (colorsnested2.Red(redCode, redName): colorsnested2.Color)
           .transformInto[colorsnested1.Color] ==> colorsnested1.Red(colorsnested1.RedInfo(redCode, redName))
@@ -114,10 +114,18 @@ object WixSpec extends TestSuite {
         implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
           Transformer
             .define[JavaColors.Colors, richcolors.RichColor]
-            .withCoproductInstance{_: JavaColors.Colors.Black.type => richcolors.JetBlack}
-            .withCoproductInstance{_: JavaColors.Colors.Red.type => richcolors.SalmonRed}
-            .withCoproductInstance{_: JavaColors.Colors.Green.type => richcolors.SeawaveGreen}
-            .withCoproductInstance{_: JavaColors.Colors.Blue.type => richcolors.SkyBlue}
+            .withCoproductInstance { _: JavaColors.Colors.Black.type =>
+              richcolors.JetBlack
+            }
+            .withCoproductInstance { _: JavaColors.Colors.Red.type =>
+              richcolors.SalmonRed
+            }
+            .withCoproductInstance { _: JavaColors.Colors.Green.type =>
+              richcolors.SeawaveGreen
+            }
+            .withCoproductInstance { _: JavaColors.Colors.Blue.type =>
+              richcolors.SkyBlue
+            }
             .buildTransformer
         t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
         t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
@@ -131,9 +139,9 @@ object WixSpec extends TestSuite {
             .define[JavaColors.Colors, richcolors.RichColor]
             .withCoproductInstance[JavaColors.Colors] {
               case JavaColors.Colors.Black => richcolors.JetBlack
-              case JavaColors.Colors.Red => richcolors.SalmonRed
+              case JavaColors.Colors.Red   => richcolors.SalmonRed
               case JavaColors.Colors.Green => richcolors.SeawaveGreen
-              case JavaColors.Colors.Blue => richcolors.SkyBlue
+              case JavaColors.Colors.Blue  => richcolors.SkyBlue
             }
             .buildTransformer
         t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
@@ -160,8 +168,11 @@ object WixSpec extends TestSuite {
 
         "with customization" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
-            Transformer.define[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale]
-              .withCoproductInstance { _: JavaNumbers.NumScaleUppercase.TRILLION.type => JavaNumbers.NumScale.Zero }
+            Transformer
+              .define[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale]
+              .withCoproductInstance { _: JavaNumbers.NumScaleUppercase.TRILLION.type =>
+                JavaNumbers.NumScale.Zero
+              }
               .buildTransformer
 
           (JavaNumbers.NumScaleUppercase.ZERO: JavaNumbers.NumScaleUppercase)
@@ -198,7 +209,9 @@ object WixSpec extends TestSuite {
           implicit val t: Transformer[Colors, colors2.Color] =
             Transformer
               .define[Colors, colors2.Color]
-              .withCoproductInstance { _: Colors.Green.type => colors2.Red }
+              .withCoproductInstance { _: Colors.Green.type =>
+                colors2.Red
+              }
               .buildTransformer
 
           (JavaColors.Colors.Black: Colors).transformInto[colors2.Color] ==> colors2.Black
