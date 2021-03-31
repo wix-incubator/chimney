@@ -148,6 +148,6 @@ final class TransformerInto[From, To, C <: TransformerCfg, Flags <: TransformerF
   def __refineTransformerDefinition[C1 <: TransformerCfg](
       f: TransformerDefinition[From, To, C, Flags] => TransformerDefinition[From, To, C1, Flags]
   ): TransformerInto[From, To, C1, Flags] =
-    new TransformerInto[From, To, C1, Flags](source, f(td))
+    new TransformerInto[From, To, C1, Flags](source, f(td), exceptionMapper)
 
 }
