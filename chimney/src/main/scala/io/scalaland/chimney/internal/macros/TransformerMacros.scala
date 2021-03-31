@@ -144,7 +144,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       srcPrefixTree: Tree,
       config: TransformerConfig
   )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], Tree] = {
-    lazy val sdlIdAnnotationInfo = toAnnotations.flatMap(_.find(isSdlIdAnnotation)).map(extractSdlIdAnnotationParamValues)
+    lazy val sdlIdAnnotationInfo =
+      toAnnotations.flatMap(_.find(isSdlIdAnnotation)).map(extractSdlIdAnnotationParamValues)
 
     if (isSubtype(From, To)) {
       expandSubtypes(srcPrefixTree, config)
@@ -243,9 +244,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   }
 
   def expandSourceWrappedInOption(
-    srcPrefixTree: Tree,
-    config: TransformerConfig,
-    innerSrcPrefix: Tree
+      srcPrefixTree: Tree,
+      config: TransformerConfig,
+      innerSrcPrefix: Tree
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
     if (From <:< noneTpe) {
       notSupportedDerivation(srcPrefixTree, From, To)
@@ -262,8 +263,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   }
 
   def expandSourceWrappedInOptionUnsafe(
-    srcPrefixTree: Tree,
-    config: TransformerConfig
+      srcPrefixTree: Tree,
+      config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
     expandSourceWrappedInOption(
       srcPrefixTree,
@@ -272,8 +273,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     )(From, To)
 
   def expandSourceStringWrappedInOptionWithSdlIdException(
-    srcPrefixTree: Tree,
-    config: TransformerConfig
+      srcPrefixTree: Tree,
+      config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
     expandSourceWrappedInOption(
       srcPrefixTree,
@@ -282,8 +283,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     )(From, To)
 
   def expandSourceStringWrappedInOptionWithSdlIdPlaceholder(
-    srcPrefixTree: Tree,
-    config: TransformerConfig
+      srcPrefixTree: Tree,
+      config: TransformerConfig
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
     expandSourceWrappedInOption(
       srcPrefixTree,
@@ -847,14 +848,22 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def resolveRecursiveTransformerBody(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], TransformerBodyTree] = {
+  )(
+      From: Type,
+      To: Type,
+      toAnnotations: Option[Seq[Annotation]] = None
+  ): Either[Seq[DerivationError], TransformerBodyTree] = {
     resolveTransformerBody(srcPrefixTree, config.rec)(From, To, toAnnotations)
   }
 
   def resolveTransformerBody(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], TransformerBodyTree] = {
+  )(
+      From: Type,
+      To: Type,
+      toAnnotations: Option[Seq[Annotation]] = None
+  ): Either[Seq[DerivationError], TransformerBodyTree] = {
     if (config.wrapperType.isDefined) {
       val implicitTransformerF = resolveImplicitTransformer(config)(From, To)
       val implicitTransformer = findLocalImplicitTransformer(From, To, None)

@@ -4,7 +4,12 @@ import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
 import io.scalaland.chimney.examples.wix._
 import JavaColors.{Colors, ColorsUpperCase}
-import io.scalaland.chimney.internal.{CoproductInstanceNotFoundException, SdlIdNotProvidedException, TransformerCfg, TransformerFlags}
+import io.scalaland.chimney.internal.{
+  CoproductInstanceNotFoundException,
+  SdlIdNotProvidedException,
+  TransformerCfg,
+  TransformerFlags
+}
 import utest._
 import io.scalaland.chimney.internal.Constants._
 
@@ -289,7 +294,8 @@ object WixSpec extends TestSuite {
         case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
         val customValue = "custom_placeholder_value"
 
-        implicit val t: Transformer[EntityDTO, Entity] = Transformer.define[EntityDTO, Entity]
+        implicit val t: Transformer[EntityDTO, Entity] = Transformer
+          .define[EntityDTO, Entity]
           .withFieldComputed(_.id, _.id.getOrElse(customValue))
           .buildTransformer
 
@@ -299,7 +305,8 @@ object WixSpec extends TestSuite {
       "use expansion rules on custom transformer if there is no ID transformation rule" - {
         case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String, otherValue: String)
 
-        implicit val t: Transformer[EntityDTO, Entity] = Transformer.define[EntityDTO, Entity]
+        implicit val t: Transformer[EntityDTO, Entity] = Transformer
+          .define[EntityDTO, Entity]
           .withFieldConst(_.otherValue, "default")
           .buildTransformer
 
