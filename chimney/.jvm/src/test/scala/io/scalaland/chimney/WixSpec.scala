@@ -31,19 +31,21 @@ object WixSpec extends TestSuite {
     }
 
     "TransformerInto allows to override exceptions" - {
+      case class EntityDTO(id: Option[String])
+      case class Entity(id: String, otherField: Int)
+
       case class CustomException(message: String) extends Exception
       val mapper: Throwable => Throwable = e => CustomException(e.getMessage)
 
-      val source: Option[String] = None
-
-      val transformerInto = new TransformerInto[Option[String], String, TransformerCfg.Empty, TransformerFlags.Enable[
+      val transformerInto = new TransformerInto[EntityDTO, Entity, TransformerCfg.Empty, TransformerFlags.Enable[
         TransformerFlags.UnsafeOption,
         TransformerFlags.Default
       ]](
-        source,
+        EntityDTO(None),
         new TransformerDefinition(Map.empty, Map.empty),
         mapper
-      ).enableUnsafeOption
+      ).enableUnsafeOption //to trigger an exception
+        .withFieldConst(_.otherField, 42) //to test that builder copies the mapper
 
       intercept[CustomException](transformerInto.transform)
     }
