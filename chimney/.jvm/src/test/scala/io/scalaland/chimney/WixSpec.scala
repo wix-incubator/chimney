@@ -4,8 +4,9 @@ import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
 import io.scalaland.chimney.examples.wix._
 import JavaColors.{Colors, ColorsUpperCase}
-import io.scalaland.chimney.internal.{CoproductInstanceNotFoundException, TransformerCfg, TransformerFlags}
+import io.scalaland.chimney.internal.{CoproductInstanceNotFoundException, SdlIdNotProvidedException, TransformerCfg, TransformerFlags}
 import utest._
+import io.scalaland.chimney.internal.Constants._
 
 /**
   * Specification for changes introduced by Wix
@@ -246,6 +247,63 @@ object WixSpec extends TestSuite {
           (numbers.long.Trillion(42): numbers.long.NumScale[Int])
             .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Trillion
         }
+      }
+    }
+
+    "support SDL @id annotation" - {
+      import com.wixpress.infra.sdl.api.id._
+      case class EntityDTO(id: Option[String])
+
+      "use placeholder if id is None (IdGeneration.Auto)" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
+
+        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder)
+        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholder)
+      }
+
+      "throw an exception if id is None (IdGeneration.Manual)" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: String)
+
+        intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity] }
+        intercept[SdlIdNotProvidedException] { EntityDTO(None).into[Entity].transform }
+      }
+
+      "use placeholder if id is None (default IdGeneration)" - {
+        case class Entity(@id id: String)
+
+        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder)
+        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholder)
+      }
+
+      "fail compilation if id is None (some new IdGeneration type)" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.SomeNewIdGenerationType) id: String)
+
+        compileError("EntityDTO(None).transformInto[Entity]")
+          .check(
+            "",
+            "derivation from entitydto.id: scala.Option[String] to java.lang.String is not supported in Chimney"
+          )
+      }
+
+      "use custom transformer (withFieldComputed)" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
+        val customValue = "custom_placeholder_value"
+
+        implicit val t: Transformer[EntityDTO, Entity] = Transformer.define[EntityDTO, Entity]
+          .withFieldComputed(_.id, _.id.getOrElse(customValue))
+          .buildTransformer
+
+        EntityDTO(None).transformInto[Entity] ==> Entity(customValue)
+      }
+
+      "use expansion rules on custom transformer if there is no ID transformation rule" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String, otherValue: String)
+
+        implicit val t: Transformer[EntityDTO, Entity] = Transformer.define[EntityDTO, Entity]
+          .withFieldConst(_.otherValue, "default")
+          .buildTransformer
+
+        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder, "default")
       }
     }
   }

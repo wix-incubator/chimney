@@ -2,6 +2,7 @@ package io.scalaland.chimney.internal.macros
 
 import io.scalaland.chimney.internal._
 import io.scalaland.chimney.internal.utils.{DerivationGuards, EitherUtils, MacroUtils}
+import Constants._
 
 import scala.reflect.macros.blackbox
 
@@ -130,19 +131,21 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandTransformerTree(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], Tree] = {
 
     resolveImplicitTransformer(config)(From, To)
       .map(localImplicitTree => Right(localImplicitTree.callTransform(srcPrefixTree)))
       .getOrElse {
-        deriveTransformerTree(srcPrefixTree, config)(From, To)
+        deriveTransformerTree(srcPrefixTree, config)(From, To, toAnnotations)
       }
   }
 
   def deriveTransformerTree(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], Tree] = {
+    lazy val sdlIdAnnotationInfo = toAnnotations.flatMap(_.find(isSdlIdAnnotation)).map(extractSdlIdAnnotationParamValues)
+
     if (isSubtype(From, To)) {
       expandSubtypes(srcPrefixTree, config)
     } else if (fromValueClassToType(From, To)) {
@@ -153,8 +156,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       expandOptions(srcPrefixTree, config)(From, To)
     } else if (isOption(To)) {
       expandTargetWrappedInOption(srcPrefixTree, config)(From, To)
+    } else if (isOptionString(From) && sdlIdAnnotationInfo.exists(shouldThrowExOnMissingSdlId)) {
+      expandSourceStringWrappedInOptionWithSdlIdException(srcPrefixTree, config)(From, To)
+    } else if (isOptionString(From) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
+      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config)(From, To)
     } else if (config.flags.unsafeOption && isOption(From)) {
-      expandSourceWrappedInOption(srcPrefixTree, config)(From, To)
+      expandSourceWrappedInOptionUnsafe(srcPrefixTree, config)(From, To)
     } else if (bothEithers(From, To)) {
       expandEithers(srcPrefixTree, config)(From, To)
     } else if (isMap(From)) {
@@ -236,14 +243,14 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   }
 
   def expandSourceWrappedInOption(
-      srcPrefixTree: Tree,
-      config: TransformerConfig
+    srcPrefixTree: Tree,
+    config: TransformerConfig,
+    innerSrcPrefix: Tree
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
     if (From <:< noneTpe) {
       notSupportedDerivation(srcPrefixTree, From, To)
     } else {
       val fromInnerT = From.typeArgs.head
-      val innerSrcPrefix = q"$srcPrefixTree.get"
       resolveRecursiveTransformerBody(innerSrcPrefix, config.rec)(fromInnerT, To)
         .map { innerTransformerBody =>
           val fn = freshTermName(innerSrcPrefix).toString
@@ -253,6 +260,36 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         }
     }
   }
+
+  def expandSourceWrappedInOptionUnsafe(
+    srcPrefixTree: Tree,
+    config: TransformerConfig
+  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
+    expandSourceWrappedInOption(
+      srcPrefixTree,
+      config,
+      q"$srcPrefixTree.get"
+    )(From, To)
+
+  def expandSourceStringWrappedInOptionWithSdlIdException(
+    srcPrefixTree: Tree,
+    config: TransformerConfig
+  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
+    expandSourceWrappedInOption(
+      srcPrefixTree,
+      config,
+      q"$srcPrefixTree.getOrElse(throw _root_.io.scalaland.chimney.internal.SdlIdNotProvidedException())"
+    )(From, To)
+
+  def expandSourceStringWrappedInOptionWithSdlIdPlaceholder(
+    srcPrefixTree: Tree,
+    config: TransformerConfig
+  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
+    expandSourceWrappedInOption(
+      srcPrefixTree,
+      config,
+      q"$srcPrefixTree.getOrElse($SdlMissingIdPlaceholder)"
+    )(From, To)
 
   def expandOptions(
       srcPrefixTree: Tree,
@@ -551,8 +588,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                         )
                       }
                     case _
-                        if (isScalaPBEnum(instTpe) && instName == scalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
-                          (isScalaPBOneof(instTpe) && instName == scalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                        if (isScalaPBEnum(instTpe) && instName == ScalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
+                          (isScalaPBOneof(instTpe) && instName == ScalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
                       Right(
                         cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
                       )
@@ -656,7 +693,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
     val targets = {
       val adjustedTo = if (isScalaPBOneof(To) && !hasValueField(From)) getValueField(To) else To
-      adjustedTo.caseClassParams.map(Target.fromField(_, adjustedTo))
+      val annotations = adjustedTo.typeSymbol.caseClassConstructorAnnotationsByParamName
+
+      adjustedTo.caseClassParams.map(p => Target.fromField(p, adjustedTo, annotations.get(p.name.toString)))
     }
 
     val targetTransformerBodiesMapping = if (isTuple(From)) {
@@ -786,7 +825,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       config
     )(
       accessor.symbol.resultTypeIn(From),
-      target.tpe
+      target.tpe,
+      target.annotations
     )
 
     (resolved, config.wrapperErrorPathSupportInstance) match {
@@ -807,14 +847,14 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def resolveRecursiveTransformerBody(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerBodyTree] = {
-    resolveTransformerBody(srcPrefixTree, config.rec)(From, To)
+  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], TransformerBodyTree] = {
+    resolveTransformerBody(srcPrefixTree, config.rec)(From, To, toAnnotations)
   }
 
   def resolveTransformerBody(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerBodyTree] = {
+  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], TransformerBodyTree] = {
     if (config.wrapperType.isDefined) {
       val implicitTransformerF = resolveImplicitTransformer(config)(From, To)
       val implicitTransformer = findLocalImplicitTransformer(From, To, None)
@@ -840,7 +880,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             .map(tree => TransformerBodyTree(tree, isWrapped = true))
       }
     } else {
-      expandTransformerTree(srcPrefixTree, config)(From, To)
+      expandTransformerTree(srcPrefixTree, config)(From, To, toAnnotations)
         .map(tree => TransformerBodyTree(tree, isWrapped = false))
     }
   }
@@ -941,9 +981,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       .replace("$u002E", ".")
   }
 
+  private def extractSdlIdAnnotationParamValues(annotation: Annotation): Set[String] =
+    annotation.tree.children.tail.map(_.tpe.typeSymbol.name.toString).toSet
+
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"
-
-  private val scalaPBEnumUnrecognizedInstanceName: String = "Unrecognized"
-
-  private val scalaPBOneofEmptyInstanceName: String = "Empty"
 }
