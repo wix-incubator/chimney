@@ -1,17 +1,15 @@
 package io.scalaland.chimney
 
+import java.util.UUID
+
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
+import io.scalaland.chimney.examples.wix.JavaColors.{Colors, ColorsUpperCase}
 import io.scalaland.chimney.examples.wix._
-import JavaColors.{Colors, ColorsUpperCase}
-import io.scalaland.chimney.internal.{
-  CoproductInstanceNotFoundException,
-  SdlIdNotProvidedException,
-  TransformerCfg,
-  TransformerFlags
-}
-import utest._
 import io.scalaland.chimney.internal.Constants._
+import io.scalaland.chimney.internal.wix.{CoproductInstanceNotFoundException, SdlIdNotProvidedException}
+import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
+import utest._
 
 /**
   * Specification for changes introduced by Wix
@@ -311,6 +309,16 @@ object WixSpec extends TestSuite {
           .buildTransformer
 
         EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder, "default")
+      }
+
+      "apply only to Strings" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: UUID)
+
+        compileError("EntityDTO(None).transformInto[Entity]")
+          .check(
+            "",
+            "derivation from entitydto.id: scala.Option[String] to java.util.UUID is not supported in Chimney"
+          )
       }
     }
   }

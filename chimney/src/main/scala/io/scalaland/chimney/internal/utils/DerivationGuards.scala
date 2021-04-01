@@ -44,6 +44,10 @@ trait DerivationGuards {
     t <:< optionStringTpe
   }
 
+  def isString(t: Type): Boolean = {
+    t == typeOf[String]
+  }
+
   def bothOptions(from: Type, to: Type): Boolean = {
     isOption(from) && isOption(to)
   }

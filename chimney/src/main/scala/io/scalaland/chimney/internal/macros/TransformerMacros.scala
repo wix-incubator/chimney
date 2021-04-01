@@ -157,9 +157,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       expandOptions(srcPrefixTree, config)(From, To)
     } else if (isOption(To)) {
       expandTargetWrappedInOption(srcPrefixTree, config)(From, To)
-    } else if (isOptionString(From) && sdlIdAnnotationInfo.exists(shouldThrowExOnMissingSdlId)) {
+    } else if (isOptionString(From) && isString(To) && sdlIdAnnotationInfo.exists(shouldThrowExOnMissingSdlId)) {
       expandSourceStringWrappedInOptionWithSdlIdException(srcPrefixTree, config)(From, To)
-    } else if (isOptionString(From) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
+    } else if (isOptionString(From) && isString(To) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
       expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config)(From, To)
     } else if (config.flags.unsafeOption && isOption(From)) {
       expandSourceWrappedInOptionUnsafe(srcPrefixTree, config)(From, To)
@@ -275,12 +275,16 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandSourceStringWrappedInOptionWithSdlIdException(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
+  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+    val fromName = From.fullNameWithTypeArgs
+    val toName = To.fullNameWithTypeArgs
+
     expandSourceWrappedInOption(
       srcPrefixTree,
       config,
-      q"$srcPrefixTree.getOrElse(throw _root_.io.scalaland.chimney.internal.SdlIdNotProvidedException())"
+      q"$srcPrefixTree.getOrElse(throw _root_.io.scalaland.chimney.internal.wix.SdlIdNotProvidedException($fromName, $toName))"
     )(From, To)
+  }
 
   def expandSourceStringWrappedInOptionWithSdlIdPlaceholder(
       srcPrefixTree: Tree,
@@ -592,7 +596,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                         if (isScalaPBEnum(instTpe) && instName == ScalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
                           (isScalaPBOneof(instTpe) && instName == ScalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
                       Right(
-                        cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
+                        cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.wix.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
                       )
                     case _ =>
                       Left {
