@@ -155,6 +155,15 @@ trait MacroUtils extends CompanionUtils {
         }
     }
 
+    def caseClassConstructorAnnotationsByParamName: Map[String, Seq[Annotation]] =
+      classSymbolOpt
+        .map { classSymbol =>
+          classSymbol.primaryConstructor.typeSignature.paramLists.flatten
+            .map(s => s.name.toString -> s.annotations.toSeq)
+            .toMap
+        }
+        .getOrElse(Map.empty)
+
     def typeInSealedParent(parentTpe: Type): Type = {
       s.typeSignature // Workaround for <https://issues.scala-lang.org/browse/SI-7755>
 

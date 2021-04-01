@@ -1,6 +1,7 @@
 package io.scalaland.chimney.internal.utils
 
 import scala.reflect.macros.blackbox
+import io.scalaland.chimney.internal.Constants._
 
 trait DerivationGuards {
   this: MacroUtils =>
@@ -9,9 +10,19 @@ trait DerivationGuards {
 
   import c.universe._
 
-  def isScalaPBEnum(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedEnum"))
+  def isScalaPBEnum(t: Type): Boolean = t.baseClasses.exists(_.fullName.contains(ScalaPBGeneratedEnumBaseClassName))
 
-  def isScalaPBOneof(t: Type) = t.baseClasses.exists(_.fullName.contains("scalapb.GeneratedOneof"))
+  def isScalaPBOneof(t: Type): Boolean = t.baseClasses.exists(_.fullName.contains(ScalaPBGeneratedOneofBaseClassName))
+
+  def isSdlIdAnnotation(annotation: Annotation): Boolean =
+    annotation.tree.tpe.typeSymbol.fullName == SdlIdAnnotationFullName
+
+  def shouldThrowExOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean =
+    sdlIdAnnotationParamValues.contains(SdlIdGenerationManual)
+
+  def shouldUsePlaceholderOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean =
+    sdlIdAnnotationParamValues.contains(SdlIdGenerationAuto) ||
+      sdlIdAnnotationParamValues.contains(SdlIdGenerationTypeName) //Set contains name of the IdGeneration class if default param value was used
 
   def isSubtype(from: Type, to: Type): Boolean = {
     from <:< to
@@ -27,6 +38,14 @@ trait DerivationGuards {
 
   def isOption(t: Type): Boolean = {
     t <:< optionTpe
+  }
+
+  def isOptionString(t: Type): Boolean = {
+    t <:< optionStringTpe
+  }
+
+  def isString(t: Type): Boolean = {
+    t == typeOf[String]
   }
 
   def bothOptions(from: Type, to: Type): Boolean = {
@@ -102,6 +121,7 @@ trait DerivationGuards {
   }
 
   val optionTpe: Type = typeOf[Option[_]]
+  val optionStringTpe: Type = typeOf[Option[String]]
   val someTpe: Type = typeOf[Some[_]]
   val noneTpe: Type = typeOf[None.type]
   val eitherTpe: Type = typeOf[Either[_, _]]

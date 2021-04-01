@@ -2,7 +2,7 @@ package io.scalaland.chimney
 
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
-import io.scalaland.chimney.internal.{CoproductInstanceNotFoundException, TransformerCfg, TransformerFlags}
+import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
 import utest._
 
 object DslSpec extends TestSuite {

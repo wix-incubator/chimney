@@ -8,13 +8,20 @@ trait Model extends TransformerConfigSupport {
 
   import c.universe._
 
-  case class Target(name: String, tpe: Type)
+  case class Target(name: String, tpe: Type) {
+    val annotations: Option[Seq[Annotation]] = None //so it doesn't get used in equals/hashCode
+  }
   object Target {
     def fromJavaBeanSetter(ms: MethodSymbol, site: Type): Target =
       Target(ms.canonicalName, ms.beanSetterParamTypeIn(site))
 
     def fromField(ms: MethodSymbol, site: Type): Target =
       Target(ms.canonicalName, ms.resultTypeIn(site))
+
+    def fromField(ms: MethodSymbol, site: Type, annotationsOpt: Option[Seq[Annotation]]): Target =
+      new Target(ms.canonicalName, ms.resultTypeIn(site)) {
+        override val annotations: Option[Seq[Annotation]] = annotationsOpt
+      }
   }
 
   case class TransformerBodyTree(tree: Tree, isWrapped: Boolean)
