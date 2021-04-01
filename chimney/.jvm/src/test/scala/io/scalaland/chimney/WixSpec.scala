@@ -7,8 +7,8 @@ import io.scalaland.chimney.examples._
 import io.scalaland.chimney.examples.wix.JavaColors.{Colors, ColorsUpperCase}
 import io.scalaland.chimney.examples.wix._
 import io.scalaland.chimney.internal.Constants._
-import io.scalaland.chimney.internal.wix.{CoproductInstanceNotFoundException, SdlIdNotProvidedException}
-import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
+import io.scalaland.chimney.internal.wix.SdlIdNotProvidedException
+import io.scalaland.chimney.internal.{CoproductInstanceNotFoundException, TransformerCfg, TransformerFlags}
 import utest._
 
 /**

@@ -4,7 +4,7 @@ import utest._
 import io.scalaland.chimney.examples.addressbook
 import io.scalaland.chimney.examples.order
 import io.scalaland.chimney.examples.pb
-import io.scalaland.chimney.internal.wix.CoproductInstanceNotFoundException
+import io.scalaland.chimney.internal.CoproductInstanceNotFoundException
 
 object PBTransformationSpec extends TestSuite {
 

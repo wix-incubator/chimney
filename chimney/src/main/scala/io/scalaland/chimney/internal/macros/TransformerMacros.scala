@@ -596,7 +596,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                         if (isScalaPBEnum(instTpe) && instName == ScalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
                           (isScalaPBOneof(instTpe) && instName == ScalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
                       Right(
-                        cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.wix.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
+                        cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
                       )
                     case _ =>
                       Left {
