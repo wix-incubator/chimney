@@ -1,5 +1,7 @@
 package io.scalaland.chimney.internal.utils
 
+import java.util.UUID
+
 import scala.reflect.macros.blackbox
 import io.scalaland.chimney.internal.Constants._
 
@@ -20,9 +22,13 @@ trait DerivationGuards {
   def shouldThrowExOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean =
     sdlIdAnnotationParamValues.contains(SdlIdGenerationManual)
 
-  def shouldUsePlaceholderOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean =
-    sdlIdAnnotationParamValues.contains(SdlIdGenerationAuto) ||
-      sdlIdAnnotationParamValues.contains(SdlIdGenerationTypeName) //Set contains name of the IdGeneration class if default param value was used
+  def shouldUsePlaceholderOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean = {
+    /* Annotation's default value in SDL is "Auto". However if @id() annotation is used instead of @id(IdGeneration.Auto),
+       Scala reflection will return "IdGeneration" string as the param value instead of "Auto" */
+    val idGenerationDefaultValueUsed = sdlIdAnnotationParamValues.contains(SdlIdGenerationTypeName)
+
+    sdlIdAnnotationParamValues.contains(SdlIdGenerationAuto) || idGenerationDefaultValueUsed
+  }
 
   def isSubtype(from: Type, to: Type): Boolean = {
     from <:< to
@@ -46,6 +52,10 @@ trait DerivationGuards {
 
   def isString(t: Type): Boolean = {
     t == typeOf[String]
+  }
+
+  def isUUID(t: Type): Boolean = {
+    t == typeOf[UUID]
   }
 
   def bothOptions(from: Type, to: Type): Boolean = {

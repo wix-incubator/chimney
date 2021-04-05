@@ -260,8 +260,8 @@ object WixSpec extends TestSuite {
       "use placeholder if id is None (IdGeneration.Auto)" - {
         case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
 
-        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder)
-        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholder)
+        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholderString)
+        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholderString)
       }
 
       "throw an exception if id is None (IdGeneration.Manual)" - {
@@ -274,8 +274,8 @@ object WixSpec extends TestSuite {
       "use placeholder if id is None (default IdGeneration)" - {
         case class Entity(@id id: String)
 
-        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder)
-        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholder)
+        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholderString)
+        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholderString)
       }
 
       "fail compilation if id is None (some new IdGeneration type)" - {
@@ -308,16 +308,34 @@ object WixSpec extends TestSuite {
           .withFieldConst(_.otherValue, "default")
           .buildTransformer
 
-        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholder, "default")
+        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholderString, "default")
       }
 
-      "apply only to Strings" - {
+      "support UUID placeholder" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: UUID)
+
+        implicit val t: Transformer[String, UUID] = str => UUID.fromString(str)
+
+        EntityDTO(None).transformInto[Entity] ==> Entity(UUID.fromString(SdlMissingIdPlaceholderUUID))
+        EntityDTO(None).into[Entity].transform ==> Entity(UUID.fromString(SdlMissingIdPlaceholderUUID))
+      }
+
+      "support UUID exception" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: UUID)
+
+        implicit val t: Transformer[String, UUID] = str => UUID.fromString(str)
+
+        intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity] }
+        intercept[SdlIdNotProvidedException] { EntityDTO(None).into[Entity].transform }
+      }
+
+      "fail compilation if no UUID transformer in scope" - {
         case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: UUID)
 
         compileError("EntityDTO(None).transformInto[Entity]")
           .check(
             "",
-            "derivation from entitydto.id: scala.Option[String] to java.util.UUID is not supported in Chimney"
+            "java.lang.String to java.util.UUID is not supported in Chimney"
           )
       }
     }
