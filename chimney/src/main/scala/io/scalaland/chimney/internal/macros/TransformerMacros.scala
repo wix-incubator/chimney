@@ -159,12 +159,20 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       expandOptions(srcPrefixTree, config)(From, To)
     } else if (isOption(To)) {
       expandTargetWrappedInOption(srcPrefixTree, config)(From, To)
-    } else if (isOptionString(From) && (isString(To) || isUUID(To)) && sdlIdAnnotationInfo.exists(shouldThrowExOnMissingSdlId)) {
+    } else if (isOptionString(From) && (isString(To) || isUUID(To)) && sdlIdAnnotationInfo.exists(
+                 shouldThrowExOnMissingSdlId
+               )) {
       expandSourceStringWrappedInOptionWithSdlIdException(srcPrefixTree, config)(From, To)
     } else if (isOptionString(From) && isString(To) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
-      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config, SdlMissingIdPlaceholderString)(From, To)
+      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config, SdlMissingIdPlaceholderString)(
+        From,
+        To
+      )
     } else if (isOptionString(From) && isUUID(To) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
-      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config, SdlMissingIdPlaceholderUUID)(From, To)
+      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config, SdlMissingIdPlaceholderUUID)(
+        From,
+        To
+      )
     } else if (config.flags.unsafeOption && isOption(From)) {
       expandSourceWrappedInOptionUnsafe(srcPrefixTree, config)(From, To)
     } else if (bothEithers(From, To)) {
