@@ -264,11 +264,27 @@ object WixSpec extends TestSuite {
         EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholderString)
       }
 
+      "use provided value if id is Some (IdGeneration.Auto)" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
+        val str = "some_value"
+
+        EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
+        EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
+      }
+
       "throw an exception if id is None (IdGeneration.Manual)" - {
         case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: String)
 
         intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity] }
         intercept[SdlIdNotProvidedException] { EntityDTO(None).into[Entity].transform }
+      }
+
+      "use provided value if id is Some (IdGeneration.Manual)" - {
+        case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: String)
+        val str = "some_value"
+
+        EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
+        EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
       }
 
       "use placeholder if id is None (default IdGeneration)" - {
