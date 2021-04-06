@@ -1,5 +1,7 @@
 package io.scalaland.chimney.internal
 
+import java.util.UUID
+
 object Constants {
   //proto enum
   val ScalaPBEnumUnrecognizedInstanceName = "Unrecognized"
@@ -14,5 +16,6 @@ object Constants {
   val SdlIdGenerationTypeName = "IdGeneration"
   val SdlIdGenerationManual = "Manual"
   val SdlIdGenerationAuto = "Auto"
-  val SdlMissingIdPlaceholder = "ID_WILL_BE_GENERATED_BY_SDL"
+  val SdlMissingIdPlaceholderString = "ID_WILL_BE_GENERATED_BY_SDL"
+  val SdlMissingIdPlaceholderUUID = "00000000-0000-0000-0000-000000000000"
 }

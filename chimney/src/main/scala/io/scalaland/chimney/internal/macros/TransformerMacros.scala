@@ -1,5 +1,7 @@
 package io.scalaland.chimney.internal.macros
 
+import java.util.UUID
+
 import io.scalaland.chimney.internal._
 import io.scalaland.chimney.internal.utils.{DerivationGuards, EitherUtils, MacroUtils}
 import Constants._
@@ -157,10 +159,20 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       expandOptions(srcPrefixTree, config)(From, To)
     } else if (isOption(To)) {
       expandTargetWrappedInOption(srcPrefixTree, config)(From, To)
-    } else if (isOptionString(From) && isString(To) && sdlIdAnnotationInfo.exists(shouldThrowExOnMissingSdlId)) {
+    } else if (isOptionString(From) && (isString(To) || isUUID(To)) && sdlIdAnnotationInfo.exists(
+                 shouldThrowExOnMissingSdlId
+               )) {
       expandSourceStringWrappedInOptionWithSdlIdException(srcPrefixTree, config)(From, To)
     } else if (isOptionString(From) && isString(To) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
-      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config)(From, To)
+      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config, SdlMissingIdPlaceholderString)(
+        From,
+        To
+      )
+    } else if (isOptionString(From) && isUUID(To) && sdlIdAnnotationInfo.exists(shouldUsePlaceholderOnMissingSdlId)) {
+      expandSourceStringWrappedInOptionWithSdlIdPlaceholder(srcPrefixTree, config, SdlMissingIdPlaceholderUUID)(
+        From,
+        To
+      )
     } else if (config.flags.unsafeOption && isOption(From)) {
       expandSourceWrappedInOptionUnsafe(srcPrefixTree, config)(From, To)
     } else if (bothEithers(From, To)) {
@@ -288,12 +300,13 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   def expandSourceStringWrappedInOptionWithSdlIdPlaceholder(
       srcPrefixTree: Tree,
-      config: TransformerConfig
+      config: TransformerConfig,
+      placeholder: String
   )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
     expandSourceWrappedInOption(
       srcPrefixTree,
       config,
-      q"$srcPrefixTree.getOrElse($SdlMissingIdPlaceholder)"
+      q"$srcPrefixTree.getOrElse($placeholder)"
     )(From, To)
 
   def expandOptions(
