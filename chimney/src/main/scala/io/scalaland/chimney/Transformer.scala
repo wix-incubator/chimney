@@ -14,6 +14,7 @@ import scala.language.experimental.macros
   */
 trait Transformer[From, To] {
   def transform(src: From): To
+  val renames: Map[String, String] = Map.empty
 }
 
 object Transformer {

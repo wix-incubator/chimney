@@ -355,5 +355,150 @@ object WixSpec extends TestSuite {
           )
       }
     }
+
+    "transformer should contain field renames specified using withFieldRenamed" - {
+      "empty renames" - {
+        case class A(name: String, age: Int)
+        case class B(name: String, age: Int)
+
+        implicitly[Transformer[A, B]].renames ==> Map.empty
+      }
+
+      "if top level fields renamed" - {
+        case class A(aName: String, aAge: Int)
+        case class B(bName: String, bAge: Int)
+
+        val t = Transformer.define[A, B]
+          .withFieldRenamed(_.aName, _.bName)
+          .withFieldRenamed(_.aAge, _.bAge)
+          .buildTransformer
+
+        t.renames ==> Map(
+          "aName" -> "bName",
+          "aAge" -> "bAge",
+        )
+      }
+
+      "if nested fields renamed" - {
+        case class A(info1: AInfo, info2: AInfo)
+        case class AInfo(aName: String, aAge: Int)
+
+        case class B(info1: BInfo, info2: BInfo)
+        case class BInfo(bName: String, bAge: Int)
+
+        implicit val t = Transformer.define[AInfo, BInfo]
+          .withFieldRenamed(_.aName, _.bName)
+          .withFieldRenamed(_.aAge, _.bAge)
+          .buildTransformer
+
+        implicitly[Transformer[A, B]].renames ==> Map(
+          "info1.aName" -> "info1.bName",
+          "info1.aAge" -> "info1.bAge",
+
+          "info2.aName" -> "info2.bName",
+          "info2.aAge" -> "info2.bAge",
+        )
+      }
+
+      "if 2-level nested fields renamed" - {
+        case class A(info1: AInfoWrapper, info2: AInfoWrapper)
+        case class AInfoWrapper(info: AInfo)
+        case class AInfo(aName: String, aAge: Int)
+
+        case class B(info1: BInfoWrapper, info2: BInfoWrapper)
+        case class BInfoWrapper(info: BInfo)
+        case class BInfo(bName: String, bAge: Int)
+
+        implicit val t = Transformer.define[AInfo, BInfo]
+          .withFieldRenamed(_.aName, _.bName)
+          .withFieldRenamed(_.aAge, _.bAge)
+          .buildTransformer
+
+        implicitly[Transformer[A, B]].renames ==> Map(
+          "info1.info.aName" -> "info1.info.bName",
+          "info1.info.aAge" -> "info1.info.bAge",
+
+          "info2.info.aName" -> "info2.info.bName",
+          "info2.info.aAge" -> "info2.info.bAge",
+        )
+      }
+
+      "if both top level and nested fields renamed" - {
+        case class A(aInfo1: AInfo, aInfo2: AInfo)
+        case class AInfo(aName: String, aAge: Int)
+
+        case class B(bInfo1: BInfo, bInfo2: BInfo)
+        case class BInfo(bName: String, bAge: Int)
+
+        implicit val tInfo = Transformer.define[AInfo, BInfo]
+          .withFieldRenamed(_.aName, _.bName)
+          .withFieldRenamed(_.aAge, _.bAge)
+          .buildTransformer
+
+        implicit val t = Transformer.define[A, B]
+          .withFieldRenamed(_.aInfo1, _.bInfo1)
+          .withFieldRenamed(_.aInfo2, _.bInfo2)
+          .buildTransformer
+
+        t.renames ==> Map(
+          "aInfo1" -> "bInfo1",
+          "aInfo1.aName" -> "bInfo1.bName",
+          "aInfo1.aAge" -> "bInfo1.bAge",
+
+          "aInfo2" -> "bInfo2",
+          "aInfo2.aName" -> "bInfo2.bName",
+          "aInfo2.aAge" -> "bInfo2.bAge",
+        )
+      }
+
+      "if nested wrapped fields renamed" - {
+        case class A(info1: Option[AInfo], info2: AInfo, info3: Option[AInfo])
+        case class AInfo(aName: String, aAge: Int)
+
+        case class B(info1: Option[BInfo], info2: Option[BInfo], info3: BInfo)
+        case class BInfo(bName: String, bAge: Int)
+
+        implicit val nestedTransformer = Transformer.define[AInfo, BInfo]
+          .withFieldRenamed(_.aName, _.bName)
+          .withFieldRenamed(_.aAge, _.bAge)
+          .buildTransformer
+
+        val t = Transformer.define[A, B].enableUnsafeOption.buildTransformer
+
+        t.renames ==> Map(
+          "info1.aName" -> "info1.bName",
+          "info1.aAge" -> "info1.bAge",
+
+          "info2.aName" -> "info2.bName",
+          "info2.aAge" -> "info2.bAge",
+
+          "info3.aName" -> "info3.bName",
+          "info3.aAge" -> "info3.bAge",
+        )
+      }
+
+      "if array fields renamed" - {
+        case class A(info1: Seq[AInfo], info2: Seq[AInfo])
+        case class AInfo(aName: String, aAge: Int)
+
+        case class B(info1: Seq[BInfo], info2: Seq[BInfo])
+        case class BInfo(bName: String, bAge: Int)
+
+        implicit val nestedTransformer = Transformer.define[AInfo, BInfo]
+          .withFieldRenamed(_.aName, _.bName)
+          .withFieldRenamed(_.aAge, _.bAge)
+          .buildTransformer
+
+        val t = Transformer.define[A, B].enableUnsafeOption.buildTransformer
+
+        t.renames ==> Map(
+          "info1.aName" -> "info1.bName",
+          "info1.aAge" -> "info1.bAge",
+
+          "info2.aName" -> "info2.bName",
+          "info2.aAge" -> "info2.bAge",
+        )
+      }
+    }
   }
 }

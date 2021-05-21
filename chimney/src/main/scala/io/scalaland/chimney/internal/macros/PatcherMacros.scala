@@ -98,7 +98,7 @@ trait PatcherMacros extends PatcherConfiguration {
               patchParamTpe,
               tParamTpe
             ).map { transformerTree =>
-                q"$transformerTree.orElse($entityField)"
+                q"${transformerTree.tree}.orElse($entityField)"
               }
               .left
               .map(DerivationError.printErrors)
@@ -111,14 +111,14 @@ trait PatcherMacros extends PatcherConfiguration {
           expandTransformerTree(patchField, TransformerConfig())(
             patchParamTpe,
             tParam.resultTypeIn(T)
-          ).left
+          ).map(_.tree).left
             .flatMap { errors =>
               if (isOption(patchParamTpe)) {
                 expandTransformerTree(q"$patchField.get", TransformerConfig())(
                   patchParamTpe.typeArgs.head,
                   tParam.resultTypeIn(T)
                 ).map { innerTransformerTree =>
-                    q"if($patchField.isDefined) { $innerTransformerTree } else { $entityField }"
+                    q"if($patchField.isDefined) { ${innerTransformerTree.tree} } else { $entityField }"
                   }
                   .left
                   .map(errors2 => DerivationError.printErrors(errors ++ errors2))
