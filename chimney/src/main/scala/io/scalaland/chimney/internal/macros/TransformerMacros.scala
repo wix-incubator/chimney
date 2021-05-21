@@ -102,9 +102,16 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                  def transform($srcName: $From): $To = {
                    ${transformerTree.tree}
                  }
-                 override val renames: Map[String, String] = ${transformerTree.renamesMapTree}
+
+                 @annotation.nowarn
+                 override def renames: Map[String, String] = ${transformerTree.renamesMapTree}
                }
             """
+            /* Suppressing "Generated class io.scalaland.chimney.DslSpec$$anon$143 differs only in case
+               from io.scalaland.chimney.DslSpec$$anon$143. Such classes will overwrite one another on case-insensitive
+               filesystems" warnings, which occur if implicitly-converted transformer is used.
+               This condition should not be a problem, since these classes are essentially the same one.
+               @see Testcase#001. */
         }
 
       case Left(derivationErrors) =>
@@ -912,8 +919,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       From: Type,
       To: Type,
       toAnnotations: Option[Seq[Annotation]] = None
-  ): Either[Seq[DerivationError], TransformerBodyTree] = {//todo TransformerBodyTree should be a lower level concern
-    if (config.wrapperType.isDefined) { //todo wrappers may break rename extractions
+  ): Either[Seq[DerivationError], TransformerBodyTree] = {
+    if (config.wrapperType.isDefined) {
       val implicitTransformerF = resolveImplicitTransformer(config)(From, To)
       val implicitTransformer = findLocalImplicitTransformer(From, To, None)
 
@@ -930,9 +937,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                |""".stripMargin
           )
         case (Some(localImplicitTreeF), None) =>
-          Right(TransformerBodyTree(localImplicitTreeF.callTransform(srcPrefixTree), isWrapped = true))
+          Right(TransformerBodyTree(localImplicitTreeF.callTransform(srcPrefixTree), isWrapped = true, localImplicitTreeF.getRenames))
         case (None, Some(localImplicitTree)) =>
-          Right(TransformerBodyTree(localImplicitTree.callTransform(srcPrefixTree), isWrapped = false))
+          Right(TransformerBodyTree(localImplicitTree.callTransform(srcPrefixTree), isWrapped = false, localImplicitTree.getRenames))
         case (None, None) =>
           deriveTransformerTree(srcPrefixTree, config)(From, To)
             .map(tree => TransformerBodyTree(tree.tree, isWrapped = true, tree.renamesMapTree))
@@ -1049,11 +1056,14 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         case _                                           => target.name
       }
 
-      val nested = q"""${transformer.renamesMapTree}.map { (e: (String, String)) =>
-            ($lookupName + "." + e._1, ${target.name} + "." + e._2)
-          }"""
+      val nestedRenames =
+        q"""_root_.io.scalaland.chimney.TransformerUtils.__addPrefix(
+          ${transformer.renamesMapTree},
+          $lookupName,
+          ${target.name})
+        """
 
-      if (lookupName == target.name) nested else q"$nested + ($lookupName -> ${target.name})"
+      if (lookupName == target.name) nestedRenames else q"$nestedRenames + ($lookupName -> ${target.name})"
     }
 
     c.Expr(q"Seq(..$trees).flatten.toMap")

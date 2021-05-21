@@ -1005,7 +1005,7 @@ object DslSpec extends TestSuite {
     }
 
     "support macro dependent transformers" - {
-      "Option[List[A]] -> List[B]" - {
+      "Option[List[A]] -> List[B] (Testcase#001)" - {
         implicit def optListT[A, B](implicit underlying: Transformer[A, B]): Transformer[Option[List[A]], List[B]] =
           _.toList.flatten.map(underlying.transform)
 
