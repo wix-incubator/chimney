@@ -111,7 +111,8 @@ trait PatcherMacros extends PatcherConfiguration {
           expandTransformerTree(patchField, TransformerConfig())(
             patchParamTpe,
             tParam.resultTypeIn(T)
-          ).map(_.tree).left
+          ).map(_.tree)
+            .left
             .flatMap { errors =>
               if (isOption(patchParamTpe)) {
                 expandTransformerTree(q"$patchField.get", TransformerConfig())(

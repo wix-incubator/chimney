@@ -368,14 +368,15 @@ object WixSpec extends TestSuite {
         case class A(aName: String, aAge: Int)
         case class B(bName: String, bAge: Int)
 
-        val t = Transformer.define[A, B]
+        val t = Transformer
+          .define[A, B]
           .withFieldRenamed(_.aName, _.bName)
           .withFieldRenamed(_.aAge, _.bAge)
           .buildTransformer
 
         t.renames ==> Map(
           "aName" -> "bName",
-          "aAge" -> "bAge",
+          "aAge" -> "bAge"
         )
       }
 
@@ -386,7 +387,8 @@ object WixSpec extends TestSuite {
         case class B(info1: BInfo, info2: BInfo)
         case class BInfo(bName: String, bAge: Int)
 
-        implicit val t = Transformer.define[AInfo, BInfo]
+        implicit val t = Transformer
+          .define[AInfo, BInfo]
           .withFieldRenamed(_.aName, _.bName)
           .withFieldRenamed(_.aAge, _.bAge)
           .buildTransformer
@@ -394,9 +396,8 @@ object WixSpec extends TestSuite {
         implicitly[Transformer[A, B]].renames ==> Map(
           "info1.aName" -> "info1.bName",
           "info1.aAge" -> "info1.bAge",
-
           "info2.aName" -> "info2.bName",
-          "info2.aAge" -> "info2.bAge",
+          "info2.aAge" -> "info2.bAge"
         )
       }
 
@@ -409,7 +410,8 @@ object WixSpec extends TestSuite {
         case class BInfoWrapper(info: BInfo)
         case class BInfo(bName: String, bAge: Int)
 
-        implicit val t = Transformer.define[AInfo, BInfo]
+        implicit val t = Transformer
+          .define[AInfo, BInfo]
           .withFieldRenamed(_.aName, _.bName)
           .withFieldRenamed(_.aAge, _.bAge)
           .buildTransformer
@@ -417,9 +419,8 @@ object WixSpec extends TestSuite {
         implicitly[Transformer[A, B]].renames ==> Map(
           "info1.info.aName" -> "info1.info.bName",
           "info1.info.aAge" -> "info1.info.bAge",
-
           "info2.info.aName" -> "info2.info.bName",
-          "info2.info.aAge" -> "info2.info.bAge",
+          "info2.info.aAge" -> "info2.info.bAge"
         )
       }
 
@@ -430,12 +431,14 @@ object WixSpec extends TestSuite {
         case class B(bInfo1: BInfo, bInfo2: BInfo)
         case class BInfo(bName: String, bAge: Int)
 
-        implicit val tInfo = Transformer.define[AInfo, BInfo]
+        implicit val tInfo = Transformer
+          .define[AInfo, BInfo]
           .withFieldRenamed(_.aName, _.bName)
           .withFieldRenamed(_.aAge, _.bAge)
           .buildTransformer
 
-        implicit val t = Transformer.define[A, B]
+        implicit val t = Transformer
+          .define[A, B]
           .withFieldRenamed(_.aInfo1, _.bInfo1)
           .withFieldRenamed(_.aInfo2, _.bInfo2)
           .buildTransformer
@@ -444,10 +447,9 @@ object WixSpec extends TestSuite {
           "aInfo1" -> "bInfo1",
           "aInfo1.aName" -> "bInfo1.bName",
           "aInfo1.aAge" -> "bInfo1.bAge",
-
           "aInfo2" -> "bInfo2",
           "aInfo2.aName" -> "bInfo2.bName",
-          "aInfo2.aAge" -> "bInfo2.bAge",
+          "aInfo2.aAge" -> "bInfo2.bAge"
         )
       }
 
@@ -458,7 +460,8 @@ object WixSpec extends TestSuite {
         case class B(info1: Option[BInfo], info2: Option[BInfo], info3: BInfo)
         case class BInfo(bName: String, bAge: Int)
 
-        implicit val nestedTransformer = Transformer.define[AInfo, BInfo]
+        implicit val nestedTransformer = Transformer
+          .define[AInfo, BInfo]
           .withFieldRenamed(_.aName, _.bName)
           .withFieldRenamed(_.aAge, _.bAge)
           .buildTransformer
@@ -468,12 +471,10 @@ object WixSpec extends TestSuite {
         t.renames ==> Map(
           "info1.aName" -> "info1.bName",
           "info1.aAge" -> "info1.bAge",
-
           "info2.aName" -> "info2.bName",
           "info2.aAge" -> "info2.bAge",
-
           "info3.aName" -> "info3.bName",
-          "info3.aAge" -> "info3.bAge",
+          "info3.aAge" -> "info3.bAge"
         )
       }
 
@@ -484,7 +485,8 @@ object WixSpec extends TestSuite {
         case class B(info1: Seq[BInfo], info2: Seq[BInfo])
         case class BInfo(bName: String, bAge: Int)
 
-        implicit val nestedTransformer = Transformer.define[AInfo, BInfo]
+        implicit val nestedTransformer = Transformer
+          .define[AInfo, BInfo]
           .withFieldRenamed(_.aName, _.bName)
           .withFieldRenamed(_.aAge, _.bAge)
           .buildTransformer
@@ -494,9 +496,8 @@ object WixSpec extends TestSuite {
         t.renames ==> Map(
           "info1.aName" -> "info1.bName",
           "info1.aAge" -> "info1.bAge",
-
           "info2.aName" -> "info2.bName",
-          "info2.aAge" -> "info2.bAge",
+          "info2.aAge" -> "info2.bAge"
         )
       }
     }
