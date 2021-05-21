@@ -1,14 +1,10 @@
 package io.scalaland.chimney.internal.macros
 
-import java.util.UUID
-
 import io.scalaland.chimney.internal._
 import io.scalaland.chimney.internal.utils.{DerivationGuards, EitherUtils, MacroUtils}
 import Constants._
 
 import scala.reflect.macros.blackbox
-
-import scala.language.implicitConversions
 
 trait TransformerMacros extends TransformerConfigSupport with MappingMacros with TargetConstructorMacros {
   this: DerivationGuards with MacroUtils with EitherUtils =>
