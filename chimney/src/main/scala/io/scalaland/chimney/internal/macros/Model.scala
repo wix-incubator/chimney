@@ -24,7 +24,10 @@ trait Model extends TransformerConfigSupport {
       }
   }
 
-  case class TransformerBodyTree(tree: Tree, isWrapped: Boolean)
+  type RenamesMapTree = c.Expr[Map[String, String]]
+  private val EmptyRenamesMapTree = c.Expr(q"${Map.empty[String, String]}")
+  case class TransformerTree(tree: Tree, renamesMapTree: RenamesMapTree = EmptyRenamesMapTree)
+  case class TransformerBodyTree(tree: Tree, isWrapped: Boolean, renamesMapTree: RenamesMapTree = EmptyRenamesMapTree)
 
   sealed trait AccessorResolution extends Product with Serializable {
     def isResolved: Boolean

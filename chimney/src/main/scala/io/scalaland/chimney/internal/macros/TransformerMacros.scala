@@ -1,7 +1,5 @@
 package io.scalaland.chimney.internal.macros
 
-import java.util.UUID
-
 import io.scalaland.chimney.internal._
 import io.scalaland.chimney.internal.utils.{DerivationGuards, EitherUtils, MacroUtils}
 import Constants._
@@ -89,7 +87,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             q"""
                new _root_.io.scalaland.chimney.TransformerF[$f, $From, $To] {
                  def transform($srcName: $From): ${f.applyTypeArg(To)} = {
-                   $transformerTree
+                   ${transformerTree.tree}
                  }
                }
             """
@@ -98,10 +96,18 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             q"""
                new _root_.io.scalaland.chimney.Transformer[$From, $To] {
                  def transform($srcName: $From): $To = {
-                   $transformerTree
+                   ${transformerTree.tree}
                  }
+
+                 @annotation.nowarn
+                 override def renames: Map[String, String] = ${transformerTree.renamesMapTree}
                }
             """
+          /* Suppressing "Generated class io.scalaland.chimney.DslSpec$$anon$143 differs only in case
+               from io.scalaland.chimney.DslSpec$$anon$143. Such classes will overwrite one another on case-insensitive
+               filesystems" warnings, which occur if implicitly-converted transformer is used.
+               This condition should not be a problem, since these classes are essentially the same one.
+               @see Testcase#001. */
         }
 
       case Left(derivationErrors) =>
@@ -120,23 +126,29 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def genTransformerTree(
       srcName: TermName,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
     val srcPrefixTree = Ident(TermName(srcName.decodedName.toString))
 
     resolveTransformerBody(srcPrefixTree, config)(From, To).map {
-      case TransformerBodyTree(tree, false) if config.wrapperType.isDefined =>
-        q"${config.wrapperSupportInstance}.pure[$To]($tree)"
-      case TransformerBodyTree(tree, _) => tree
+      case TransformerBodyTree(tree, false, renames) if config.wrapperType.isDefined =>
+        TransformerTree(q"${config.wrapperSupportInstance}.pure[$To]($tree)", renames)
+      case TransformerBodyTree(tree, _, renames) => TransformerTree(tree, renames)
     }
   }
 
   def expandTransformerTree(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], Tree] = {
+  )(
+      From: Type,
+      To: Type,
+      toAnnotations: Option[Seq[Annotation]] = None
+  ): Either[Seq[DerivationError], TransformerTree] = {
 
     resolveImplicitTransformer(config)(From, To)
-      .map(localImplicitTree => Right(localImplicitTree.callTransform(srcPrefixTree)))
+      .map(localImplicitTree =>
+        Right(TransformerTree(localImplicitTree.callTransform(srcPrefixTree), localImplicitTree.getRenames))
+      )
       .getOrElse {
         deriveTransformerTree(srcPrefixTree, config)(From, To, toAnnotations)
       }
@@ -145,7 +157,11 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def deriveTransformerTree(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type, toAnnotations: Option[Seq[Annotation]] = None): Either[Seq[DerivationError], Tree] = {
+  )(
+      From: Type,
+      To: Type,
+      toAnnotations: Option[Seq[Annotation]] = None
+  ): Either[Seq[DerivationError], TransformerTree] = {
     lazy val sdlIdAnnotationInfo =
       toAnnotations.flatMap(_.find(isSdlIdAnnotation)).map(extractSdlIdAnnotationParamValues)
 
@@ -176,7 +192,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     } else if (config.flags.unsafeOption && isOption(From)) {
       expandSourceWrappedInOptionUnsafe(srcPrefixTree, config)(From, To)
     } else if (bothEithers(From, To)) {
-      expandEithers(srcPrefixTree, config)(From, To)
+      expandEithers(srcPrefixTree, config)(From, To).map(TransformerTree(_))
     } else if (isMap(From)) {
       expandFromMap(srcPrefixTree, config)(From, To)
     } else if (bothOfIterableOrArray(From, To)) {
@@ -188,7 +204,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     } else if (config.flags.beanSetters && destinationJavaBean(To)) {
       expandDestinationJavaBean(srcPrefixTree, config)(From, To)
     } else if (bothSealedClasses(From, To)) {
-      expandSealedClasses(srcPrefixTree, config)(From, To)
+      expandSealedClasses(srcPrefixTree, config)(From, To).map(TransformerTree(_))
     } else {
       notSupportedDerivation(srcPrefixTree, From, To)
     }
@@ -198,9 +214,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandSubtypes(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  ): Either[Seq[DerivationError], Tree] = {
+  ): Either[Seq[DerivationError], TransformerTree] = {
     Right {
-      mkTransformerBodyTree0(config)(srcPrefixTree)
+      TransformerTree(mkTransformerBodyTree0(config)(srcPrefixTree))
     }
   }
 
@@ -210,14 +226,16 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   )(
       From: Type,
       To: Type
-  ): Either[Seq[DerivationError], Tree] = {
+  ): Either[Seq[DerivationError], TransformerTree] = {
 
     From.valueClassMember
       .map { member =>
         Right {
-          mkTransformerBodyTree0(config) {
-            q"$srcPrefixTree.${member.name}"
-          }
+          TransformerTree(
+            mkTransformerBodyTree0(config) {
+              q"$srcPrefixTree.${member.name}"
+            }
+          )
         }
       }
       .getOrElse {
@@ -235,18 +253,20 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   )(
       From: Type,
       To: Type
-  ): Either[Seq[DerivationError], Tree] = {
+  ): Either[Seq[DerivationError], TransformerTree] = {
     Right {
-      mkTransformerBodyTree0(config) {
-        q"new $To($srcPrefixTree)"
-      }
+      TransformerTree(
+        mkTransformerBodyTree0(config) {
+          q"new $To($srcPrefixTree)"
+        }
+      )
     }
   }
 
   def expandTargetWrappedInOption(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
     if (To <:< noneTpe) {
       notSupportedDerivation(srcPrefixTree, From, To)
     } else {
@@ -259,7 +279,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       srcPrefixTree: Tree,
       config: TransformerConfig,
       innerSrcPrefix: Tree
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
     if (From <:< noneTpe) {
       notSupportedDerivation(srcPrefixTree, From, To)
     } else {
@@ -267,9 +287,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       resolveRecursiveTransformerBody(innerSrcPrefix, config.rec)(fromInnerT, To)
         .map { innerTransformerBody =>
           val fn = freshTermName(innerSrcPrefix).toString
-          mkTransformerBodyTree1(To, Target(fn, To), innerTransformerBody, config) { tree =>
-            q"($tree)"
-          }
+          TransformerTree(
+            mkTransformerBodyTree1(To, Target(fn, To), innerTransformerBody, config) { tree =>
+              q"($tree)"
+            },
+            innerTransformerBody.renamesMapTree
+          )
         }
     }
   }
@@ -277,7 +300,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandSourceWrappedInOptionUnsafe(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] =
     expandSourceWrappedInOption(
       srcPrefixTree,
       config,
@@ -287,7 +310,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandSourceStringWrappedInOptionWithSdlIdException(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
     val fromName = From.fullNameWithTypeArgs
     val toName = To.fullNameWithTypeArgs
 
@@ -302,7 +325,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       srcPrefixTree: Tree,
       config: TransformerConfig,
       placeholder: String
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] =
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] =
     expandSourceWrappedInOption(
       srcPrefixTree,
       config,
@@ -312,7 +335,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandOptions(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
 
     def fromInnerT = From.typeArgs.head
     def toInnerT = To.typeArgs.head
@@ -323,19 +346,25 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       val fn = Ident(freshTermName(srcPrefixTree))
       resolveRecursiveTransformerBody(fn, config.rec)(fromInnerT, toInnerT)
         .map {
-          case TransformerBodyTree(innerTree, false) =>
-            mkTransformerBodyTree0(config) {
-              q"$srcPrefixTree.map(($fn: $fromInnerT) => $innerTree)"
-            }
+          case TransformerBodyTree(innerTree, false, renames) =>
+            TransformerTree(
+              mkTransformerBodyTree0(config) {
+                q"$srcPrefixTree.map(($fn: $fromInnerT) => $innerTree)"
+              },
+              renames
+            )
 
-          case TransformerBodyTree(innerTree, true) =>
-            q"""
-              $srcPrefixTree.fold[${config.wrapperType.get.applyTypeArg(To)}](
-                ${config.wrapperSupportInstance}.pure(Option.empty[$toInnerT])
-              )(
-                ($fn: $fromInnerT) => ${config.wrapperSupportInstance}.map($innerTree, Option.apply[$toInnerT])
-              )
-            """
+          case TransformerBodyTree(innerTree, true, renames) =>
+            TransformerTree(
+              q"""
+                $srcPrefixTree.fold[${config.wrapperType.get.applyTypeArg(To)}](
+                  ${config.wrapperSupportInstance}.pure(Option.empty[$toInnerT])
+                )(
+                  ($fn: $fromInnerT) => ${config.wrapperSupportInstance}.map($innerTree, Option.apply[$toInnerT])
+                )
+              """,
+              renames
+            )
         }
     }
   }
@@ -403,7 +432,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandFromMap(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
     val ToInnerT = To.collectionInnerTpe
 
     (config.wrapperErrorPathSupportInstance, config.wrapperType, ToInnerT.caseClassParams.map(_.resultTypeIn(ToInnerT))) match {
@@ -423,32 +452,41 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
             val keyTransformerWithPath =
               if (keyTransformer.isWrapped)
-                q"""$errorPathSupport.addPath[$toKeyT](
+                TransformerTree(
+                  q"""$errorPathSupport.addPath[$toKeyT](
                    ${keyTransformer.tree},
                    _root_.io.scalaland.chimney.ErrorPathNode.MapKey($fnK)
-                 )"""
-              else q"$wrapper.pure[$toKeyT](${keyTransformer.tree})"
+                 )""",
+                  keyTransformer.renamesMapTree
+                )
+              else TransformerTree(q"$wrapper.pure[$toKeyT](${keyTransformer.tree})", keyTransformer.renamesMapTree)
 
             val valueTransformerWithPath =
               if (valueTransformer.isWrapped)
-                q"""$errorPathSupport.addPath[$toValueT](
+                TransformerTree(
+                  q"""$errorPathSupport.addPath[$toValueT](
                     ${valueTransformer.tree},
                     _root_.io.scalaland.chimney.ErrorPathNode.MapValue($fnK)
-                 )"""
-              else q"$wrapper.pure[$toValueT](${valueTransformer.tree})"
+                 )""",
+                  valueTransformer.renamesMapTree
+                )
+              else
+                TransformerTree(q"$wrapper.pure[$toValueT](${valueTransformer.tree})", valueTransformer.renamesMapTree)
 
             Right(
-              q"""$wrapper.traverse[$To, $WrappedToInnerT, $ToInnerT](
+              TransformerTree(
+                q"""$wrapper.traverse[$To, $WrappedToInnerT, $ToInnerT](
                   $srcPrefixTree.iterator.map[$WrappedToInnerT] {
                     case (${fnK.name}: $fromKeyT, ${fnV.name}: $fromValueT) =>
                       $wrapper.product[$toKeyT, $toValueT](
-                        $keyTransformerWithPath,
-                        $valueTransformerWithPath
+                        ${keyTransformerWithPath.tree},
+                        ${valueTransformerWithPath.tree}
                       )
                   },
                   _root_.scala.Predef.identity[$WrappedToInnerT]
                 )
              """
+              )
             )
           case _ =>
             Left(keyTransformerE.left.getOrElse(Nil) ++ valueTransformerE.left.getOrElse(Nil))
@@ -461,7 +499,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandIterableOrArray(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
 
     val FromInnerT = From.collectionInnerTpe
     val ToInnerT = To.collectionInnerTpe
@@ -470,28 +508,33 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
     resolveRecursiveTransformerBody(fn, config.rec)(FromInnerT, ToInnerT)
       .map {
-        case TransformerBodyTree(innerTransformerTree, true) =>
+        case TransformerBodyTree(innerTransformerTree, true, renames) =>
           if (config.wrapperType.isDefined) {
             config.wrapperErrorPathSupportInstance match {
               case Some(errorPathSupport) =>
                 val idx = Ident(freshTermName("idx"))
-
-                q"""${config.wrapperSupportInstance}.traverse[$To, ($FromInnerT, _root_.scala.Int), $ToInnerT](
-                  $srcPrefixTree.iterator.zipWithIndex,
-                  { case (${fn.name}: $FromInnerT, ${idx.name}: _root_.scala.Int) =>
-                    $errorPathSupport.addPath[$ToInnerT](
-                      $innerTransformerTree,
-                      _root_.io.scalaland.chimney.ErrorPathNode.Index($idx)
-                    )
-                  }
+                TransformerTree(
+                  q"""${config.wrapperSupportInstance}.traverse[$To, ($FromInnerT, _root_.scala.Int), $ToInnerT](
+                    $srcPrefixTree.iterator.zipWithIndex,
+                    { case (${fn.name}: $FromInnerT, ${idx.name}: _root_.scala.Int) =>
+                      $errorPathSupport.addPath[$ToInnerT](
+                        $innerTransformerTree,
+                        _root_.io.scalaland.chimney.ErrorPathNode.Index($idx)
+                      )
+                    }
+                   )
+                  """,
+                  renames
                 )
-              """
               case None =>
-                q"""${config.wrapperSupportInstance}.traverse[$To, $FromInnerT, $ToInnerT](
-                  $srcPrefixTree.iterator,
-                  ($fn: $FromInnerT) => $innerTransformerTree
+                TransformerTree(
+                  q"""${config.wrapperSupportInstance}.traverse[$To, $FromInnerT, $ToInnerT](
+                    $srcPrefixTree.iterator,
+                    ($fn: $FromInnerT) => $innerTransformerTree
+                  )
+                  """,
+                  renames
                 )
-              """
             }
 
           } else {
@@ -502,7 +545,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
             // $COVERAGE-ON$
           }
 
-        case TransformerBodyTree(innerTransformerTree, false) =>
+        case TransformerBodyTree(innerTransformerTree, false, renames) =>
           def isTransformationIdentity = fn == innerTransformerTree
           def sameCollectionTypes = From.typeConstructor =:= To.typeConstructor
 
@@ -525,9 +568,9 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
           }
 
           if (config.wrapperType.isDefined) {
-            q"${config.wrapperSupportInstance}.pure($transformedCollectionTree)"
+            TransformerTree(q"${config.wrapperSupportInstance}.pure($transformedCollectionTree)", renames)
           } else {
-            transformedCollectionTree
+            TransformerTree(transformedCollectionTree, renames)
           }
       }
   }
@@ -581,7 +624,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                         instTpe,
                         matchingTargetSymbol.typeInSealedParent(To)
                       ).map { innerTransformerTree =>
-                        cq"$fn: $instTpe => $innerTransformerTree"
+                        cq"$fn: $instTpe => ${innerTransformerTree.tree}"
                       }
                     case List(matchingTargetSymbol)
                         if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetSymbol.isJavaEnum => // sealed class may be parameterized
@@ -684,7 +727,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
   def expandDestinationTuple(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
 
     resolveSourceTupleAccessors(From, To)
       .flatMap { accessorsMapping =>
@@ -694,16 +737,18 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         val targets = To.caseClassParams.map(Target.fromField(_, To))
         val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-        mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
-          mkNewClass(To, args)
-        }
+        TransformerTree(
+          mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
+            mkNewClass(To, args)
+          }
+        )
       }
   }
 
   def expandDestinationCaseClass(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
 
     val oneofValueField = TermName("value")
     def getValueField(t: Type) = t.member(oneofValueField).typeSignature
@@ -745,20 +790,24 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     targetTransformerBodiesMapping.map { transformerBodyPerTarget =>
       val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
 
-      if (isScalaPBOneof(To) && !hasValueField(From))
+      val tree = if (isScalaPBOneof(To) && !hasValueField(From)) {
         mkTransformerBodyTree(getValueField(To), targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, Seq(mkNewClass(getValueField(To), args)))
-        } else
+        }
+      } else {
         mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
           mkNewClass(To, args)
         }
+      }
+
+      TransformerTree(tree, calculateRenames(transformerBodyPerTarget, config.fieldOverrides))
     }
   }
 
   def expandDestinationJavaBean(
       srcPrefixTree: Tree,
       config: TransformerConfig
-  )(From: Type, To: Type): Either[Seq[DerivationError], Tree] = {
+  )(From: Type, To: Type): Either[Seq[DerivationError], TransformerTree] = {
 
     val beanSetters = To.beanSetterMethods
     val targets = beanSetters.map(Target.fromJavaBeanSetter(_, To))
@@ -768,9 +817,13 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     resolveTransformerBodyTreeFromAccessorsMapping(srcPrefixTree, accessorsMapping, From, To, config)
       .map { transformerBodyPerTarget =>
         val bodyTreeArgs = targets.map(target => transformerBodyPerTarget(target))
-        mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
-          mkNewJavaBean(To, targets zip args)
-        }
+
+        TransformerTree(
+          mkTransformerBodyTree(To, targets, bodyTreeArgs, config) { args =>
+            mkNewJavaBean(To, targets zip args)
+          },
+          calculateRenames(transformerBodyPerTarget, config.fieldOverrides)
+        )
       }
   }
 
@@ -855,7 +908,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                  ${bodyTree.tree},
                  _root_.io.scalaland.chimney.ErrorPathNode.Accessor(${accessor.symbol.name.toString})
                )""",
-            isWrapped = true
+            isWrapped = true,
+            bodyTree.renamesMapTree
           )
         }
       case _ => resolved
@@ -898,16 +952,28 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                |""".stripMargin
           )
         case (Some(localImplicitTreeF), None) =>
-          Right(TransformerBodyTree(localImplicitTreeF.callTransform(srcPrefixTree), isWrapped = true))
+          Right(
+            TransformerBodyTree(
+              localImplicitTreeF.callTransform(srcPrefixTree),
+              isWrapped = true,
+              localImplicitTreeF.getRenames
+            )
+          )
         case (None, Some(localImplicitTree)) =>
-          Right(TransformerBodyTree(localImplicitTree.callTransform(srcPrefixTree), isWrapped = false))
+          Right(
+            TransformerBodyTree(
+              localImplicitTree.callTransform(srcPrefixTree),
+              isWrapped = false,
+              localImplicitTree.getRenames
+            )
+          )
         case (None, None) =>
           deriveTransformerTree(srcPrefixTree, config)(From, To)
-            .map(tree => TransformerBodyTree(tree, isWrapped = true))
+            .map(tree => TransformerBodyTree(tree.tree, isWrapped = true, tree.renamesMapTree))
       }
     } else {
       expandTransformerTree(srcPrefixTree, config)(From, To, toAnnotations)
-        .map(tree => TransformerBodyTree(tree, isWrapped = false))
+        .map(tree => TransformerBodyTree(tree.tree, isWrapped = false, tree.renamesMapTree))
     }
   }
 
@@ -1009,6 +1075,30 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   private def extractSdlIdAnnotationParamValues(annotation: Annotation): Set[String] =
     annotation.tree.children.tail.map(_.tpe.typeSymbol.name.toString).toSet
+
+  private def calculateRenames(
+      targets: Map[Target, TransformerBodyTree],
+      fieldOverrides: Map[String, FieldOverride]
+  ): c.Expr[Map[String, String]] = {
+    val trees = targets.map {
+      case (target, transformer) =>
+        val lookupName = fieldOverrides.get(target.name) match {
+          case Some(FieldOverride.RenamedFrom(sourceName)) => sourceName
+          case _                                           => target.name
+        }
+
+        val nestedRenames =
+          q"""_root_.io.scalaland.chimney.TransformerUtils.__addPrefix(
+          ${transformer.renamesMapTree},
+          $lookupName,
+          ${target.name})
+        """
+
+        if (lookupName == target.name) nestedRenames else q"$nestedRenames + ($lookupName -> ${target.name})"
+    }
+
+    c.Expr(q"Seq(..$trees).flatten.toMap")
+  }
 
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"
 }

@@ -286,6 +286,10 @@ trait MacroUtils extends CompanionUtils {
     def callTransform(input: Tree): Tree = {
       q"$t.transform($input)"
     }
+
+    def getRenames: c.Expr[Map[String, String]] = {
+      c.Expr(q"$t.renames")
+    }
   }
   // $COVERAGE-ON$
 
