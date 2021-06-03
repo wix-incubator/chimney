@@ -115,50 +115,47 @@ object WixSpec extends TestSuite {
       }
     }
 
-    "support java enum" - {
-      "allow `withCoproductInstance` with java enum values" - {
-        implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
-          Transformer
-            .define[JavaColors.Colors, richcolors.RichColor]
-            .withCoproductInstance { _: JavaColors.Colors.Black.type =>
-              richcolors.JetBlack
-            }
-            .withCoproductInstance { _: JavaColors.Colors.Red.type =>
-              richcolors.SalmonRed
-            }
-            .withCoproductInstance { _: JavaColors.Colors.Green.type =>
-              richcolors.SeawaveGreen
-            }
-            .withCoproductInstance { _: JavaColors.Colors.Blue.type =>
-              richcolors.SkyBlue
-            }
-            .buildTransformer
-        t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
-        t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
-        t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
-        t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
+    "from scala enumeration" - {
+      "to scala enumeration" - {
+        "derive" - {
+          val t = Transformer.derive[enumeration.Color.Value, enumeration.ColorUpper.Value]
+
+          t.transform(enumeration.Color.Black) ==> enumeration.ColorUpper.BLACK
+          t.transform(enumeration.Color.Red) ==> enumeration.ColorUpper.RED
+          t.transform(enumeration.Color.Green) ==> enumeration.ColorUpper.GREEN
+          t.transform(enumeration.Color.Blue) ==> enumeration.ColorUpper.BLUE
+        }
+        // TODO add withCoproductInstance cases
       }
 
-      "allow `withCoproductInstance` with java enum type and total function" - {
-        implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
-          Transformer
-            .define[JavaColors.Colors, richcolors.RichColor]
-            .withCoproductInstance[JavaColors.Colors] {
-              case JavaColors.Colors.Black => richcolors.JetBlack
-              case JavaColors.Colors.Red   => richcolors.SalmonRed
-              case JavaColors.Colors.Green => richcolors.SeawaveGreen
-              case JavaColors.Colors.Blue  => richcolors.SkyBlue
-            }
-            .buildTransformer
-        t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
-        t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
-        t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
-        t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
+      "to java enum" - {
+        "derive" - {
+          val t = Transformer.derive[enumeration.Color.Value, JavaColors.Colors]
+
+          t.transform(enumeration.Color.Black) ==> JavaColors.Colors.Black
+          t.transform(enumeration.Color.Red) ==> JavaColors.Colors.Red
+          t.transform(enumeration.Color.Green) ==> JavaColors.Colors.Green
+          t.transform(enumeration.Color.Blue) ==> JavaColors.Colors.Blue
+        }
+        // TODO add withCoproductInstance cases
       }
 
-      "transform java enum into java enum" - {
+      "to case object" - {
+        "derive" - {
+          val t = Transformer.derive[enumeration.Color.Value, colors4.Color]
 
-        "by canonical name" - {
+          t.transform(enumeration.Color.Black) ==> colors4.BLACK
+          t.transform(enumeration.Color.Red) ==> colors4.RED
+          t.transform(enumeration.Color.Green) ==> colors4.GREEN
+          t.transform(enumeration.Color.Blue) ==> colors4.BLUE
+        }
+        // TODO add withCoproductInstance cases
+      }
+    }
+
+    "from java enum" - {
+      "to java enum" - {
+        "derive" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
             Transformer.define.buildTransformer
 
@@ -171,8 +168,7 @@ object WixSpec extends TestSuite {
           (JavaNumbers.NumScaleUppercase.TRILLION: JavaNumbers.NumScaleUppercase)
             .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Trillion
         }
-
-        "with customization" - {
+        "derive with customization" - {
           implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
             Transformer
               .define[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale]
@@ -190,10 +186,80 @@ object WixSpec extends TestSuite {
           (JavaNumbers.NumScaleUppercase.TRILLION: JavaNumbers.NumScaleUppercase)
             .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
         }
+        "`withCoproductInstance` per value" - {
+          implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
+            Transformer
+              .define[JavaColors.Colors, richcolors.RichColor]
+              .withCoproductInstance { _: JavaColors.Colors.Black.type =>
+                richcolors.JetBlack
+              }
+              .withCoproductInstance { _: JavaColors.Colors.Red.type =>
+                richcolors.SalmonRed
+              }
+              .withCoproductInstance { _: JavaColors.Colors.Green.type =>
+                richcolors.SeawaveGreen
+              }
+              .withCoproductInstance { _: JavaColors.Colors.Blue.type =>
+                richcolors.SkyBlue
+              }
+              .buildTransformer
+          t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
+          t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
+          t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
+          t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
+        }
+        "`withCoproductInstance` per type" - {
+          implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
+            Transformer
+              .define[JavaColors.Colors, richcolors.RichColor]
+              .withCoproductInstance[JavaColors.Colors] {
+                case JavaColors.Colors.Black => richcolors.JetBlack
+                case JavaColors.Colors.Red   => richcolors.SalmonRed
+                case JavaColors.Colors.Green => richcolors.SeawaveGreen
+                case JavaColors.Colors.Blue  => richcolors.SkyBlue
+              }
+              .buildTransformer
+          t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
+          t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
+          t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
+          t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
+        }
       }
 
-      "transform java enum into sealed hierachy" - {
-        "by exact name" - {
+      "to scala enum" - {
+        "derive" - {
+          val t = Transformer.derive[JavaColors.Colors, enumeration.ColorUpper.Value]
+
+          t.transform(JavaColors.Colors.Black) ==> enumeration.ColorUpper.BLACK
+          t.transform(JavaColors.Colors.Red) ==> enumeration.ColorUpper.RED
+          t.transform(JavaColors.Colors.Green) ==> enumeration.ColorUpper.GREEN
+          t.transform(JavaColors.Colors.Blue) ==> enumeration.ColorUpper.BLUE
+        }
+        "`withCoproductInstance` per value" - {
+          val t =
+            Transformer
+              .define[JavaColors.Colors, enumeration.RichColor.Value]
+              .withCoproductInstance { _: JavaColors.Colors.Black.type =>
+                enumeration.RichColor.JetBlack
+              }
+              .withCoproductInstance { _: JavaColors.Colors.Red.type =>
+                enumeration.RichColor.SalmonRed
+              }
+              .withCoproductInstance { _: JavaColors.Colors.Green.type =>
+                enumeration.RichColor.SeawaveGreen
+              }
+              .withCoproductInstance { _: JavaColors.Colors.Blue.type =>
+                enumeration.RichColor.SkyBlue
+              }
+              .buildTransformer
+          t.transform(JavaColors.Colors.Black) ==> enumeration.RichColor.JetBlack
+          t.transform(JavaColors.Colors.Red) ==> enumeration.RichColor.SalmonRed
+          t.transform(JavaColors.Colors.Green) ==> enumeration.RichColor.SeawaveGreen
+          t.transform(JavaColors.Colors.Blue) ==> enumeration.RichColor.SkyBlue
+        }
+      }
+      "to sealed hierarchy" - {
+        "derive" - {
           implicit val t: Transformer[Colors, colors2.Color] = Transformer.define.buildTransformer
 
           (JavaColors.Colors.Black: Colors).transformInto[colors2.Color] ==> colors2.Black
@@ -201,8 +267,7 @@ object WixSpec extends TestSuite {
           (JavaColors.Colors.Green: Colors).transformInto[colors2.Color] ==> colors2.Green
           (JavaColors.Colors.Red: Colors).transformInto[colors2.Color] ==> colors2.Red
         }
-
-        "by canonical name" - {
+        "derive ignoring case" - {
           implicit val t: Transformer[ColorsUpperCase, colors2.Color] = Transformer.define.buildTransformer
 
           (JavaColors.ColorsUpperCase.BLACK: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Black
@@ -210,8 +275,7 @@ object WixSpec extends TestSuite {
           (JavaColors.ColorsUpperCase.GREEN: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Green
           (JavaColors.ColorsUpperCase.RED: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Red
         }
-
-        "with customization" - {
+        "derive with customization" - {
           implicit val t: Transformer[Colors, colors2.Color] =
             Transformer
               .define[Colors, colors2.Color]
@@ -225,11 +289,12 @@ object WixSpec extends TestSuite {
           (JavaColors.Colors.Green: Colors).transformInto[colors2.Color] ==> colors2.Red
           (JavaColors.Colors.Red: Colors).transformInto[colors2.Color] ==> colors2.Red
         }
-
       }
+    }
 
-      "transform sealed hierarchy into java enum" - {
-        "objects with customizations" - {
+    "from sealed hierarchy" - {
+      "to java enum" - {
+        "derive with customizations" - {
           implicit def t[A]: Transformer[numbers.long.NumScale[A], JavaNumbers.NumScale] =
             Transformer
               .define[numbers.long.NumScale[A], JavaNumbers.NumScale]

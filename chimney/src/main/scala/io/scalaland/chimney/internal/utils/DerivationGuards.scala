@@ -119,7 +119,7 @@ trait DerivationGuards {
   }
 
   def bothSealedClasses(from: Type, to: Type): Boolean = {
-    from.isSealedClass && to.isSealedClass
+    (from.isSealedClass || from.isEnumeration) && (to.isSealedClass || to.isEnumeration)
   }
 
   def iterableOrArray(t: Type): Boolean = {

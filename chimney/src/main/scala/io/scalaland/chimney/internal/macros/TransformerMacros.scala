@@ -574,18 +574,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
       }
   }
 
-  private def getSealedHierarchyInstances(hierarchy: Type): Map[String, List[Symbol]] =
-    if (hierarchy.typeSymbol.isJavaEnum) {
-      hierarchy.companion.decls
-        .filter(_.isJavaEnum)
-        .toList
-        .groupBy(_.name.toCanonicalName)
-    } else {
-      hierarchy.typeSymbol.classSymbolOpt.get.subclasses
-        .map(_.typeInSealedParent(hierarchy).typeSymbol)
-        .groupBy(_.name.toCanonicalName)
-    }
-
   def expandSealedClasses(
       srcPrefixTree: Tree,
       config: TransformerConfig
@@ -596,8 +584,8 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
         Right(instanceTree)
       }
       .getOrElse {
-        val fromInstances = getSealedHierarchyInstances(From)
-        val toInstances = getSealedHierarchyInstances(To)
+        val fromInstances = From.sealedMembers
+        val toInstances = To.sealedMembers
 
         val instanceClauses = fromInstances.flatMap {
           case (canonicalName, instSymbols) =>
@@ -610,33 +598,38 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                   Right(cq"_: $instTpe => $instanceTree")
                 }
                 .getOrElse {
+                  // in simple scenarios left-hand side of the case expression is flat (`case _: $type` or `case $value`)
+                  val flatPatternMatch: Tree =
+                    (instSymbol, instTpe) match {
+                      case CaseClassPattern(patternMatch)  => patternMatch
+                      case CaseObjectPattern(patternMatch) => patternMatch
+                      case JavaEnumPattern(patternMatch)   => patternMatch
+                      case ScalaEnumPattern(patternMatch)  => patternMatch
+                      case _                               => c.abort(c.enclosingPosition, "BUG: Can't derive left-hand side of the case expression")
+                    }
+
                   toInstances.getOrElse(canonicalName, Nil) match {
-                    case List(matchingTargetSymbol)
-                        if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetSymbol.isModuleClass =>
-                      val tree = mkTransformerBodyTree0(config) {
-                        q"${matchingTargetSymbol.asClass.module}"
-                      }
-                      Right(cq"_: ${instSymbol.asType} => $tree")
-                    case List(matchingTargetSymbol) if instSymbol.isCaseClass && matchingTargetSymbol.isCaseClass =>
+                    case List(JavaEnum(symbol))  => Right(cq"$flatPatternMatch => $symbol")
+                    case List(ScalaEnum(symbol)) => Right(cq"$flatPatternMatch => ${c.parse(symbol.fullName)}")
+                    case List(CaseObject(symbol)) =>
+                      Right(cq"$flatPatternMatch => ${mkTransformerBodyTree0(config)(q"${symbol.asClass.module}")}")
+                    // `case class → case class` needs recursive derivation
+                    case List(CaseClass(symbol)) if instSymbol.isCaseClass =>
                       val fn = freshTermName(instName)
+                      val explodedPatternMatch = pq"$fn: $instTpe"
                       expandDestinationCaseClass(Ident(fn), config.rec)(
                         instTpe,
-                        matchingTargetSymbol.typeInSealedParent(To)
+                        symbol.typeInSealedParent(To)
                       ).map { innerTransformerTree =>
-                        cq"$fn: $instTpe => ${innerTransformerTree.tree}"
+                        cq"$explodedPatternMatch => ${innerTransformerTree.tree}"
                       }
-                    case List(matchingTargetSymbol)
-                        if (instSymbol.isModuleClass || instSymbol.isCaseClass) && matchingTargetSymbol.isJavaEnum => // sealed class may be parameterized
-                      Right(cq"_: $instTpe => $matchingTargetSymbol")
-                    case List(matchingTargetSymbol)
-                        if instSymbol.isJavaEnum && matchingTargetSymbol.isModuleClass => // we do not support mapping from java enum to case classes, only to objects
-                      // it is a bit too much of an effort to support java enum -> case class in general case as case class may carry properties, so we omit this by now
-                      val tree = mkTransformerBodyTree0(config) {
-                        q"${matchingTargetSymbol.asClass.module}"
-                      }
-                      Right(cq"_: $instSymbol => $tree")
-                    case List(matchingTargetSymbol) if instSymbol.isJavaEnum && matchingTargetSymbol.isJavaEnum =>
-                      Right(cq"_: $instSymbol => $matchingTargetSymbol")
+                    // if there's no target symbol, but the source is special proto enum value, throw an infrastructure exception
+                    case Nil
+                        if (isScalaPBEnum(instTpe) && instName == ScalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
+                          (isScalaPBOneof(instTpe) && instName == ScalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
+                      Right(
+                        cq"$flatPatternMatch => throw _root_.io.scalaland.chimney.internal.wix.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
+                      )
                     case _ :: _ :: _ =>
                       Left {
                         Seq(
@@ -647,12 +640,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                           )
                         )
                       }
-                    case _
-                        if (isScalaPBEnum(instTpe) && instName == ScalaPBEnumUnrecognizedInstanceName && instSymbol.isCaseClass) ||
-                          (isScalaPBOneof(instTpe) && instName == ScalaPBOneofEmptyInstanceName && instSymbol.isModuleClass) =>
-                      Right(
-                        cq"_: $instTpe => throw _root_.io.scalaland.chimney.internal.wix.CoproductInstanceNotFoundException(${instSymbol.fullName}, ${To.typeSymbol.fullName})"
-                      )
                     case _ =>
                       Left {
                         Seq(
@@ -670,7 +657,6 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
         buildMatchingBlockFromClauses(instanceClauses, srcPrefixTree)
       }
-
   }
 
   private def buildMatchingBlockFromClauses(
@@ -1097,6 +1083,49 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
     }
 
     c.Expr(q"Seq(..$trees).flatten.toMap")
+  }
+
+  object CaseObject {
+    def unapply(sym: Symbol): Option[Symbol] = if (sym.isModuleClass) Some(sym) else None
+  }
+
+  object CaseClass {
+    def unapply(sym: Symbol): Option[Symbol] = if (sym.isCaseClass) Some(sym) else None
+  }
+
+  object ScalaEnum {
+    def unapply(sym: Symbol): Option[Symbol] = if (sym.typeSignature.isEnumeration) Some(sym) else None
+  }
+
+  object JavaEnum {
+    def unapply(sym: Symbol): Option[Symbol] = if (sym.isJavaEnum) Some(sym) else None
+  }
+
+  trait SymPatternExtractor {
+    def doUnapply(sym: Symbol, typeInSealedParent: Type): Option[Tree]
+    def unapply(arg: (Symbol, Type)): Option[Tree] = arg match {
+      case (sym: Symbol, typeInSealedParent: Type) => doUnapply(sym, typeInSealedParent)
+    }
+  }
+
+  object ScalaEnumPattern extends SymPatternExtractor {
+    def doUnapply(sym: Symbol, typeInSealedParent: Type): Option[Tree] =
+      if (sym.typeSignature.isEnumeration) Some(pq"${c.parse(sym.fullName)}") else None
+  }
+
+  object JavaEnumPattern extends SymPatternExtractor {
+    override def doUnapply(sym: Symbol, typeInSealedParent: Type): Option[Tree] =
+      if (sym.isJavaEnum) Some(pq"_: $sym") else None
+  }
+
+  object CaseClassPattern extends SymPatternExtractor {
+    def doUnapply(sym: Symbol, typeInSealedParent: Type): Option[Tree] =
+      if (sym.isCaseClass) Some(pq"_: $typeInSealedParent") else None
+  }
+
+  object CaseObjectPattern extends SymPatternExtractor {
+    def doUnapply(sym: Symbol, typeInSealedParent: Type): Option[Tree] =
+      if (sym.isModuleClass) Some(pq"_: $typeInSealedParent") else None
   }
 
   private val chimneyDocUrl = "https://scalalandio.github.io/chimney"

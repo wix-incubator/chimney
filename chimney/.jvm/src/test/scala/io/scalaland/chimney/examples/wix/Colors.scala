@@ -54,31 +54,20 @@ package colorsnested2 {
   case class Blue(code: String) extends Color
 }
 
-package colors5 {
+package enumeration {
   object Color extends Enumeration {
-    type Color = Value
-    val Red, Green, Blue, Black = Value
+    val Black, Red, Green, Blue = Value
   }
-}
 
-package colors6 {
-  object Color extends Enumeration {
-    type Color = Value
-    val Red, Green, Blue, Black = Value
+  object RichColor extends Enumeration {
+    val JetBlack, SalmonRed, SeawaveGreen, SkyBlue = Value
   }
 
   object ColorUpper extends Enumeration {
-    type ColorUpper = Value
-    val RED, GREEN, BLUE, BLACK = Value
+    val BLACK, RED, GREEN, BLUE = Value
   }
 
-  object ColorUpperUnderscore extends Enumeration {
-    type ColorUpperUnderscore = Value
-    val BLOODY_RED, DARK_GREEN, SKY_BLUE, SNOW_WHITE = Value
-  }
-
-  object ColorUpperCamel extends Enumeration {
-    type ColorUpperCamel = Value
-    val BloodyRed, DarkGreen, SkyBlue, SnowWhite = Value
+  object RichColorUpper extends Enumeration {
+    val JET_BLACK, SALMON_RED, SEAWAVE_GREEN, SKY_BLUE = Value
   }
 }
