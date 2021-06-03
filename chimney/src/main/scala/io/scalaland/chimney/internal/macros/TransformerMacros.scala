@@ -99,11 +99,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                    ${transformerTree.tree}
                  }
 
-                 @annotation.nowarn
                  override def renames: Map[String, String] = ${transformerTree.renamesMapTree}
                }
             """
-          /* Suppressing "Generated class io.scalaland.chimney.DslSpec$$anon$143 differs only in case
+          /* Renames field macro might produce the "Generated class io.scalaland.chimney.DslSpec$$anon$143 differs only in case
                from io.scalaland.chimney.DslSpec$$anon$143. Such classes will overwrite one another on case-insensitive
                filesystems" warnings, which occur if implicitly-converted transformer is used.
                This condition should not be a problem, since these classes are essentially the same one.
