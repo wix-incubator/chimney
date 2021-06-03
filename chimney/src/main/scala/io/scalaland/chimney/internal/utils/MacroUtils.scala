@@ -12,6 +12,7 @@ trait MacroUtils extends CompanionUtils {
     def toNameConstant: Constant = Constant(n.decodedName.toString)
     def toNameLiteral: Literal = Literal(toNameConstant)
     def toSingletonTpe: ConstantType = c.internal.constantType(toNameConstant)
+    def toCanonicalSingletonTpe: ConstantType = c.internal.constantType(Constant(n.toCanonicalName))
 
     /**
       * Canonical representation of a name, allowing matches of names across domains with different naming conventions
@@ -54,6 +55,9 @@ trait MacroUtils extends CompanionUtils {
     def isValueClass: Boolean =
       t <:< typeOf[AnyVal] && !primitives.exists(_ =:= t)
 
+    def isEnumeration: Boolean =
+      t.typeSymbol.fullName == "scala.Enumeration.Value"
+
     def isCaseClass: Boolean =
       t.typeSymbol.isCaseClass
 
@@ -91,6 +95,25 @@ trait MacroUtils extends CompanionUtils {
         .value
         .asInstanceOf[String]
     }
+
+    def sealedMembers: Map[String, List[Symbol]] =
+      if (t.typeSymbol.isJavaEnum) {
+        t.companion.decls
+          .filter(_.isJavaEnum)
+          .toList
+          .groupBy(_.name.toCanonicalName)
+      } else if (t.isEnumeration) {
+        val TypeRef(t1, _, _) = t
+        t1.decls
+          .collect {
+            case term: TermSymbol if term.isVal => Map(term.name.toCanonicalName -> List(term))
+          }
+          .foldLeft(Map.empty[String, List[Symbol]])(_ ++ _)
+      } else {
+        t.typeSymbol.classSymbolOpt.get.subclasses
+          .map(_.typeInSealedParent(t).typeSymbol)
+          .groupBy(_.name.toCanonicalName)
+      }
 
     def collectionInnerTpe: Type = {
       t.typeArgs match {
@@ -169,6 +192,8 @@ trait MacroUtils extends CompanionUtils {
 
       if (s.isJavaEnum) {
         s.typeSignature
+      } else if (parentTpe.isEnumeration) {
+        s.name.toCanonicalSingletonTpe
       } else {
         val sEta = s.asType.toType.etaExpand
         sEta.finalResultType.substituteTypes(
