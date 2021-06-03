@@ -32,7 +32,6 @@ val settings = Seq(
     "-Xlint:type-parameter-shadow",
     "-Ywarn-unused:locals",
     "-Ywarn-macros:after",
-    "-Xfatal-warnings",
     "-language:higherKinds",
   ),
   scalacOptions ++= (
