@@ -111,7 +111,7 @@ trait MacroUtils extends CompanionUtils {
           .foldLeft(Map.empty[String, List[Symbol]])(_ ++ _)
       } else {
         t.typeSymbol.classSymbolOpt.get.subclasses
-          .map(_.typeInSealedParent(t).typeSymbol)
+          .map(_.coproductType(t).typeSymbol)
           .groupBy(_.name.toCanonicalName)
       }
 
@@ -129,9 +129,15 @@ trait MacroUtils extends CompanionUtils {
       }
     }
 
+    /**
+      * Dual to [[SymbolOps.coproductType()]]
+      *
+      * @return a symbol that refers to a co-product instance described by the type `t`
+      */
     def coproductSymbol: Symbol = t match {
-      case c.universe.ConstantType(Constant(enumeration: TermSymbol)) => enumeration
-      case _                                                          => t.typeSymbol
+      case JavaEnumSupport.CoproductType(sym)    => sym
+      case EnumerationSupport.CoproductType(sym) => sym
+      case _                                     => t.typeSymbol // assume sealed hierarchy
     }
 
     def fullNameWithTypeArgs: String = {
@@ -187,20 +193,20 @@ trait MacroUtils extends CompanionUtils {
         }
         .getOrElse(Map.empty)
 
-    def typeInSealedParent(parentTpe: Type): Type = {
-      s.typeSignature // Workaround for <https://issues.scala-lang.org/browse/SI-7755>
-
-      if (s.isJavaEnum) {
-        s.typeSignature
-      } else if (parentTpe.isEnumeration) {
-        s.name.toCanonicalSingletonTpe
-      } else {
+    /**
+      * Dual to [[TypeOps.coproductSymbol]]
+      * @param parentTpe type of the coproduct parent
+      * @return a `Type` that uniquely represents a coproduct instance referenced by this symbol
+      */
+    def coproductType(parentTpe: Type): Type = s match {
+      case JavaEnumSupport.CoproductSymbol(tpe)    => tpe
+      case EnumerationSupport.CoproductSymbol(tpe) => tpe
+      case _ => // assume sealed hierarchy
         val sEta = s.asType.toType.etaExpand
         sEta.finalResultType.substituteTypes(
           sEta.baseType(parentTpe.typeSymbol).typeArgs.map(_.typeSymbol),
           parentTpe.typeArgs
         )
-      }
     }
   }
 
@@ -384,4 +390,84 @@ trait MacroUtils extends CompanionUtils {
     typeOf[Boolean],
     typeOf[Unit]
   )
+
+  /**
+    * Co-product instances encoded as [[Enumeration]] are all visible as a parent type (type does not bear any information
+    * about the instance). To overcome this, [[Enumeration]] is stored as [[ConstantType]] carrying a fully-qualified
+    * name of the instance (f.ex. `com.wix.MyEnum.Instance1`).
+    *
+    * This object holds functions to convert between that *synthetic* type and a real [[TermSymbol]] referring to an
+    * instance in [[Enumeration]]
+    */
+  object EnumerationSupport {
+    val valueSuffixLength = ".Value".length
+
+    object Literal {
+      def unapply(t: Tree): Option[(Type, Symbol)] = t match {
+        case s: Select => Some(CoproductType(t) -> s.symbol)
+        case _         => None
+      }
+    }
+
+    object CoproductType {
+      def unapply(t: Type): Option[Symbol] = t match {
+        case c.universe.ConstantType(Constant(se: String)) => Some(EnumerationSupport.CoproductSymbol(se))
+        case _                                             => None
+      }
+
+      def apply(literal: Tree): Type = c.internal.constantType(Constant(literal.toString()))
+
+      def apply(sym: Symbol): Type = {
+        val parentName = sym.typeSignature.toString.dropRight(valueSuffixLength)
+        c.internal.constantType(Constant(s"$parentName.${sym.name}"))
+      }
+    }
+
+    object CoproductSymbol {
+      def unapply(sym: Symbol): Option[Type] = if (sym.typeSignature.isEnumeration) Some(CoproductType(sym)) else None
+
+      def apply(s: String): Symbol = {
+        val tokens = s.split('.')
+        val tpeName = tokens.dropRight(1).mkString(".")
+        val termName = tokens.last
+        val tpe = c.mirror.staticModule(tpeName).typeSignature
+        tpe.decls.find {
+          case term: TermSymbol => term.isVal && term.name.toString.trim() == termName.trim()
+          case _                => false
+        }.get
+      }
+    }
+  }
+
+  /**
+    * Co-product instances encoded as Java enum are all visible as a parent type (type does not bear any information
+    * about the instance). To overcome this, java enum is stored as [[ConstantType]] carrying a [[TermSymbol]]
+    * referring to the specific instance.
+    *
+    * This object holds functions to convert between that *synthetic* type and a real [[TermSymbol]] referring to an
+    * instance in Java enum
+    */
+  object JavaEnumSupport {
+    object Literal {
+      def unapply(t: Tree): Option[(Type, Symbol)] = t match {
+        case c.universe.Literal(const @ Constant(sym: TermSymbol)) => Some(CoproductType(const) -> sym)
+        case _                                                     => None
+      }
+    }
+
+    object CoproductType {
+      def unapply(t: Type): Option[Symbol] = t match {
+        case c.universe.ConstantType(Constant(sym: TermSymbol)) => Some(sym)
+        case _                                                  => None
+      }
+
+      def apply(const: Constant): Type = c.internal.constantType(const)
+      def apply(sym: Symbol): Type = c.internal.constantType(Constant(sym))
+    }
+
+    object CoproductSymbol {
+      def unapply(sym: Symbol): Option[Type] = if (sym.isJavaEnum) Some(CoproductType(sym)) else None
+    }
+  }
+
 }

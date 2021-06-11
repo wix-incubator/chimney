@@ -4,8 +4,7 @@ import java.util.UUID
 
 import io.scalaland.chimney.dsl._
 import io.scalaland.chimney.examples._
-import io.scalaland.chimney.examples.wix.JavaColors.{Colors, ColorsUpperCase}
-import io.scalaland.chimney.examples.wix._
+import io.scalaland.chimney.examples.palette.{colorsnested1, _}
 import io.scalaland.chimney.internal.Constants._
 import io.scalaland.chimney.internal.wix.{CoproductInstanceNotFoundException, SdlIdNotProvidedException}
 import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
@@ -71,11 +70,11 @@ object WixSpec extends TestSuite {
 
       "throw an exception if oneof Empty -> sealed trait family without Empty" - {
         val ex = intercept[CoproductInstanceNotFoundException](
-          (colorsnested1.Empty: colorsnested1.Color).transformInto[colorsnested2.Color]
+          (colorsnested1.Empty: colorsnested1.Color).transformInto[rgbb_upper.Color]
         )
 
         ex.sourceTypeName ==> colorsnested1.Empty.getClass.getName.stripSuffix("$")
-        ex.targetTypeName ==> classOf[colorsnested2.Color].getName
+        ex.targetTypeName ==> "io.scalaland.chimney.examples.palette.rgbb_upper.Color"
       }
 
       "sealed trait family -> oneof" - {
@@ -94,227 +93,18 @@ object WixSpec extends TestSuite {
     }
 
     "support sealed hierarchies" - {
-      "transforming enum ignoring case" - {
-        (colors2.Red: colors2.Color).transformInto[colors4.Color] ==> colors4.RED
-        (colors2.Black: colors2.Color).transformInto[colors4.Color] ==> colors4.BLACK
+      "derive using canonical name" - {
+        val t1 = Transformer.derive[fancy_rgbb.Color, fancy_rgbb_upper.Color]
+        t1.transform(fancy_rgbb.SalmonRed) ==> fancy_rgbb_upper.SALMON_RED
+        t1.transform(fancy_rgbb.SeawaveGreen) ==> fancy_rgbb_upper.SEAWAVE_GREEN
+        t1.transform(fancy_rgbb.SkyBlue) ==> fancy_rgbb_upper.SKY_BLUE
+        t1.transform(fancy_rgbb.JetBlack) ==> fancy_rgbb_upper.JET_BLACK
 
-        (colors4.BLUE: colors4.Color).transformInto[colors2.Color] ==> colors2.Blue
-        (colors4.GREEN: colors4.Color).transformInto[colors2.Color] ==> colors2.Green
-      }
-
-      "transforming enum ignoring underscore" - {
-        (colorsUpperUndescore.BLOODY_RED: colorsUpperUndescore.Color)
-          .transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.BloodyRed
-        (colorsUpperUndescore.DARK_GREEN: colorsUpperUndescore.Color)
-          .transformInto[colorsUpperCamel.Color] ==> colorsUpperCamel.DarkGreen
-
-        (colorsUpperCamel.SkyBlue: colorsUpperCamel.Color)
-          .transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SKY_BLUE
-        (colorsUpperCamel.SnowWhite: colorsUpperCamel.Color)
-          .transformInto[colorsUpperUndescore.Color] ==> colorsUpperUndescore.SNOW_WHITE
-      }
-    }
-
-    "from scala enumeration" - {
-      "to scala enumeration" - {
-        "derive" - {
-          val t = Transformer.derive[enumeration.Color.Value, enumeration.ColorUpper.Value]
-
-          t.transform(enumeration.Color.Black) ==> enumeration.ColorUpper.BLACK
-          t.transform(enumeration.Color.Red) ==> enumeration.ColorUpper.RED
-          t.transform(enumeration.Color.Green) ==> enumeration.ColorUpper.GREEN
-          t.transform(enumeration.Color.Blue) ==> enumeration.ColorUpper.BLUE
-        }
-        // TODO add withCoproductInstance cases
-      }
-
-      "to java enum" - {
-        "derive" - {
-          val t = Transformer.derive[enumeration.Color.Value, JavaColors.Colors]
-
-          t.transform(enumeration.Color.Black) ==> JavaColors.Colors.Black
-          t.transform(enumeration.Color.Red) ==> JavaColors.Colors.Red
-          t.transform(enumeration.Color.Green) ==> JavaColors.Colors.Green
-          t.transform(enumeration.Color.Blue) ==> JavaColors.Colors.Blue
-        }
-        // TODO add withCoproductInstance cases
-      }
-
-      "to case object" - {
-        "derive" - {
-          val t = Transformer.derive[enumeration.Color.Value, colors4.Color]
-
-          t.transform(enumeration.Color.Black) ==> colors4.BLACK
-          t.transform(enumeration.Color.Red) ==> colors4.RED
-          t.transform(enumeration.Color.Green) ==> colors4.GREEN
-          t.transform(enumeration.Color.Blue) ==> colors4.BLUE
-        }
-        // TODO add withCoproductInstance cases
-      }
-    }
-
-    "from java enum" - {
-      "to java enum" - {
-        "derive" - {
-          implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
-            Transformer.define.buildTransformer
-
-          (JavaNumbers.NumScaleUppercase.ZERO: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
-          (JavaNumbers.NumScaleUppercase.MILLION: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Million
-          (JavaNumbers.NumScaleUppercase.BILLION: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Billion
-          (JavaNumbers.NumScaleUppercase.TRILLION: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Trillion
-        }
-        "derive with customization" - {
-          implicit def t[A]: Transformer[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale] =
-            Transformer
-              .define[JavaNumbers.NumScaleUppercase, JavaNumbers.NumScale]
-              .withCoproductInstance { _: JavaNumbers.NumScaleUppercase.TRILLION.type =>
-                JavaNumbers.NumScale.Zero
-              }
-              .buildTransformer
-
-          (JavaNumbers.NumScaleUppercase.ZERO: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
-          (JavaNumbers.NumScaleUppercase.MILLION: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Million
-          (JavaNumbers.NumScaleUppercase.BILLION: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Billion
-          (JavaNumbers.NumScaleUppercase.TRILLION: JavaNumbers.NumScaleUppercase)
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
-        }
-        "`withCoproductInstance` per value" - {
-          implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
-            Transformer
-              .define[JavaColors.Colors, richcolors.RichColor]
-              .withCoproductInstance { _: JavaColors.Colors.Black.type =>
-                richcolors.JetBlack
-              }
-              .withCoproductInstance { _: JavaColors.Colors.Red.type =>
-                richcolors.SalmonRed
-              }
-              .withCoproductInstance { _: JavaColors.Colors.Green.type =>
-                richcolors.SeawaveGreen
-              }
-              .withCoproductInstance { _: JavaColors.Colors.Blue.type =>
-                richcolors.SkyBlue
-              }
-              .buildTransformer
-          t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
-          t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
-          t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
-          t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
-        }
-        "`withCoproductInstance` per type" - {
-          implicit val t: Transformer[JavaColors.Colors, richcolors.RichColor] =
-            Transformer
-              .define[JavaColors.Colors, richcolors.RichColor]
-              .withCoproductInstance[JavaColors.Colors] {
-                case JavaColors.Colors.Black => richcolors.JetBlack
-                case JavaColors.Colors.Red   => richcolors.SalmonRed
-                case JavaColors.Colors.Green => richcolors.SeawaveGreen
-                case JavaColors.Colors.Blue  => richcolors.SkyBlue
-              }
-              .buildTransformer
-          t.transform(JavaColors.Colors.Black) ==> richcolors.JetBlack
-          t.transform(JavaColors.Colors.Red) ==> richcolors.SalmonRed
-          t.transform(JavaColors.Colors.Green) ==> richcolors.SeawaveGreen
-          t.transform(JavaColors.Colors.Blue) ==> richcolors.SkyBlue
-        }
-      }
-
-      "to scala enum" - {
-        "derive" - {
-          val t = Transformer.derive[JavaColors.Colors, enumeration.ColorUpper.Value]
-
-          t.transform(JavaColors.Colors.Black) ==> enumeration.ColorUpper.BLACK
-          t.transform(JavaColors.Colors.Red) ==> enumeration.ColorUpper.RED
-          t.transform(JavaColors.Colors.Green) ==> enumeration.ColorUpper.GREEN
-          t.transform(JavaColors.Colors.Blue) ==> enumeration.ColorUpper.BLUE
-        }
-        "`withCoproductInstance` per value" - {
-          val t =
-            Transformer
-              .define[JavaColors.Colors, enumeration.RichColor.Value]
-              .withCoproductInstance { _: JavaColors.Colors.Black.type =>
-                enumeration.RichColor.JetBlack
-              }
-              .withCoproductInstance { _: JavaColors.Colors.Red.type =>
-                enumeration.RichColor.SalmonRed
-              }
-              .withCoproductInstance { _: JavaColors.Colors.Green.type =>
-                enumeration.RichColor.SeawaveGreen
-              }
-              .withCoproductInstance { _: JavaColors.Colors.Blue.type =>
-                enumeration.RichColor.SkyBlue
-              }
-              .buildTransformer
-          t.transform(JavaColors.Colors.Black) ==> enumeration.RichColor.JetBlack
-          t.transform(JavaColors.Colors.Red) ==> enumeration.RichColor.SalmonRed
-          t.transform(JavaColors.Colors.Green) ==> enumeration.RichColor.SeawaveGreen
-          t.transform(JavaColors.Colors.Blue) ==> enumeration.RichColor.SkyBlue
-        }
-      }
-      "to sealed hierarchy" - {
-        "derive" - {
-          implicit val t: Transformer[Colors, colors2.Color] = Transformer.define.buildTransformer
-
-          (JavaColors.Colors.Black: Colors).transformInto[colors2.Color] ==> colors2.Black
-          (JavaColors.Colors.Blue: Colors).transformInto[colors2.Color] ==> colors2.Blue
-          (JavaColors.Colors.Green: Colors).transformInto[colors2.Color] ==> colors2.Green
-          (JavaColors.Colors.Red: Colors).transformInto[colors2.Color] ==> colors2.Red
-        }
-        "derive ignoring case" - {
-          implicit val t: Transformer[ColorsUpperCase, colors2.Color] = Transformer.define.buildTransformer
-
-          (JavaColors.ColorsUpperCase.BLACK: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Black
-          (JavaColors.ColorsUpperCase.BLUE: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Blue
-          (JavaColors.ColorsUpperCase.GREEN: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Green
-          (JavaColors.ColorsUpperCase.RED: ColorsUpperCase).transformInto[colors2.Color] ==> colors2.Red
-        }
-        "derive with customization" - {
-          implicit val t: Transformer[Colors, colors2.Color] =
-            Transformer
-              .define[Colors, colors2.Color]
-              .withCoproductInstance { _: Colors.Green.type =>
-                colors2.Red
-              }
-              .buildTransformer
-
-          (JavaColors.Colors.Black: Colors).transformInto[colors2.Color] ==> colors2.Black
-          (JavaColors.Colors.Blue: Colors).transformInto[colors2.Color] ==> colors2.Blue
-          (JavaColors.Colors.Green: Colors).transformInto[colors2.Color] ==> colors2.Red
-          (JavaColors.Colors.Red: Colors).transformInto[colors2.Color] ==> colors2.Red
-        }
-      }
-    }
-
-    "from sealed hierarchy" - {
-      "to java enum" - {
-        "derive with customizations" - {
-          implicit def t[A]: Transformer[numbers.long.NumScale[A], JavaNumbers.NumScale] =
-            Transformer
-              .define[numbers.long.NumScale[A], JavaNumbers.NumScale]
-              .withCoproductInstance((_: numbers.long.Milliard[A]) => JavaNumbers.NumScale.Zero)
-              .withCoproductInstance((_: numbers.long.Billiard[A]) => JavaNumbers.NumScale.Zero)
-              .buildTransformer
-
-          (numbers.long.Zero: numbers.long.NumScale[Nothing])
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
-          (numbers.long.Milliard(42): numbers.long.NumScale[Int])
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
-          (numbers.long.Billiard(42): numbers.long.NumScale[Int])
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Zero
-          (numbers.long.Million(42): numbers.long.NumScale[Int])
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Million
-          (numbers.long.Billion(42): numbers.long.NumScale[Int])
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Billion
-          (numbers.long.Trillion(42): numbers.long.NumScale[Int])
-            .transformInto[JavaNumbers.NumScale] ==> JavaNumbers.NumScale.Trillion
-        }
+        val t2 = Transformer.derive[fancy_rgbb_upper.Color, fancy_rgbb.Color]
+        t2.transform(fancy_rgbb_upper.SALMON_RED) ==> fancy_rgbb.SalmonRed
+        t2.transform(fancy_rgbb_upper.SEAWAVE_GREEN) ==> fancy_rgbb.SeawaveGreen
+        t2.transform(fancy_rgbb_upper.SKY_BLUE) ==> fancy_rgbb.SkyBlue
+        t2.transform(fancy_rgbb_upper.JET_BLACK) ==> fancy_rgbb.JetBlack
       }
     }
 

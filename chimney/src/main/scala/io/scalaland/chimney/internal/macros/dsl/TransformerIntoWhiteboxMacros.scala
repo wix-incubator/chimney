@@ -51,10 +51,6 @@ class TransformerIntoWhiteboxMacros(val c: whitebox.Context) extends MacroUtils 
     )
   }
 
-  def withCoproductValue(from: Tree, to: Tree): Tree = {
-    c.prefix.tree.refineTransformerDefinition(q"_.withCoproductValue(${from}, ${to})")
-  }
-
   def withCoproductInstanceFImpl[F[+_]](f: Tree)(implicit F: WeakTypeTag[F[_]]): Tree = {
     q"${c.prefix.tree}.lift[$F].withCoproductInstanceF($f)"
   }

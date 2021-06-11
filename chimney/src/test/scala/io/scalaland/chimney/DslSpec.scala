@@ -1,6 +1,7 @@
 package io.scalaland.chimney
 
 import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.examples.palette._
 import io.scalaland.chimney.examples._
 import io.scalaland.chimney.internal.{TransformerCfg, TransformerFlags}
 import utest._
@@ -682,50 +683,49 @@ object DslSpec extends TestSuite {
       "enum types encoded as sealed hierarchies of case objects" - {
         "transforming from smaller to bigger enum" - {
 
-          (colors1.Red: colors1.Color)
-            .transformInto[colors2.Color] ==> colors2.Red
-          (colors1.Green: colors1.Color)
-            .transformInto[colors2.Color] ==> colors2.Green
-          (colors1.Blue: colors1.Color)
-            .transformInto[colors2.Color] ==> colors2.Blue
+          (rgb.Red: rgb.Color)
+            .transformInto[rgbb.Color] ==> rgbb.Red
+          (rgb.Green: rgb.Color)
+            .transformInto[rgbb.Color] ==> rgbb.Green
+          (rgb.Blue: rgb.Color)
+            .transformInto[rgbb.Color] ==> rgbb.Blue
         }
 
         "transforming from bigger to smaller enum" - {
 
-          def blackIsRed(b: colors2.Black.type): colors1.Color =
-            colors1.Red
+          def blackIsRed(b: rgbb.Black.type): rgb.Color = rgb.Red
 
-          (colors2.Black: colors2.Color)
-            .into[colors1.Color]
+          (rgbb.Black: rgbb.Color)
+            .into[rgb.Color]
             .withCoproductInstance(blackIsRed)
-            .transform ==> colors1.Red
+            .transform ==> rgb.Red
 
-          (colors2.Red: colors2.Color)
-            .into[colors1.Color]
+          (rgbb.Red: rgbb.Color)
+            .into[rgb.Color]
             .withCoproductInstance(blackIsRed)
-            .transform ==> colors1.Red
+            .transform ==> rgb.Red
 
-          (colors2.Green: colors2.Color)
-            .into[colors1.Color]
+          (rgbb.Green: rgbb.Color)
+            .into[rgb.Color]
             .withCoproductInstance(blackIsRed)
-            .transform ==> colors1.Green
+            .transform ==> rgb.Green
 
-          (colors2.Blue: colors2.Color)
-            .into[colors1.Color]
+          (rgbb.Blue: rgbb.Color)
+            .into[rgb.Color]
             .withCoproductInstance(blackIsRed)
-            .transform ==> colors1.Blue
+            .transform ==> rgb.Blue
         }
 
         "transforming flat and deep enum" - {
-          (colors2.Red: colors2.Color).transformInto[colors3.Color] ==> colors3.Red
-          (colors2.Green: colors2.Color).transformInto[colors3.Color] ==> colors3.Green
-          (colors2.Blue: colors2.Color).transformInto[colors3.Color] ==> colors3.Blue
-          (colors2.Black: colors2.Color).transformInto[colors3.Color] ==> colors3.Black
+          (rgbb.Red: rgbb.Color).transformInto[inheritance_rgbb.Color] ==> inheritance_rgbb.Red
+          (rgbb.Green: rgbb.Color).transformInto[inheritance_rgbb.Color] ==> inheritance_rgbb.Green
+          (rgbb.Blue: rgbb.Color).transformInto[inheritance_rgbb.Color] ==> inheritance_rgbb.Blue
+          (rgbb.Black: rgbb.Color).transformInto[inheritance_rgbb.Color] ==> inheritance_rgbb.Black
 
-          (colors3.Red: colors3.Color).transformInto[colors2.Color] ==> colors2.Red
-          (colors3.Green: colors3.Color).transformInto[colors2.Color] ==> colors2.Green
-          (colors3.Blue: colors3.Color).transformInto[colors2.Color] ==> colors2.Blue
-          (colors3.Black: colors3.Color).transformInto[colors2.Color] ==> colors2.Black
+          (inheritance_rgbb.Red: inheritance_rgbb.Color).transformInto[rgbb.Color] ==> rgbb.Red
+          (inheritance_rgbb.Green: inheritance_rgbb.Color).transformInto[rgbb.Color] ==> rgbb.Green
+          (inheritance_rgbb.Blue: inheritance_rgbb.Color).transformInto[rgbb.Color] ==> rgbb.Blue
+          (inheritance_rgbb.Black: inheritance_rgbb.Color).transformInto[rgbb.Color] ==> rgbb.Black
         }
       }
 

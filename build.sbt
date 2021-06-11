@@ -1,5 +1,3 @@
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
-
 val versions = new {
   val scala212 = "2.12.13"
   val scala213 = "2.13.3"
@@ -32,6 +30,8 @@ val settings = Seq(
     "-Xlint:type-parameter-shadow",
     "-Ywarn-unused:locals",
     "-Ywarn-macros:after",
+//    "-Xfatal-warnings",
+//    "-Xdev",
     "-language:higherKinds",
   ),
   scalacOptions ++= (
@@ -56,9 +56,9 @@ val settings = Seq(
 
 val dependencies = Seq(
   libraryDependencies ++= Seq(
-    "org.scala-lang.modules" %%% "scala-collection-compat" % "2.2.0",
+    "org.scala-lang.modules" %% "scala-collection-compat" % "2.2.0",
     "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-    "com.lihaoyi" %%% "utest" % "0.7.5" % "test"
+    "com.lihaoyi" %% "utest" % "0.7.5" % "test"
   )
 )
 
@@ -67,8 +67,8 @@ lazy val root = project
   .settings(settings: _*)
   .settings(publishSettings: _*)
   .settings(noPublishSettings: _*)
-  .aggregate(chimneyJVM, chimneyCatsJVM)
-  .dependsOn(chimneyJVM, chimneyCatsJVM)
+  .aggregate(chimney, chimneyCats)
+  .dependsOn(chimney, chimneyCats)
   .enablePlugins(SphinxPlugin, GhpagesPlugin)
   .settings(
     Sphinx / version := version.value,
@@ -76,8 +76,7 @@ lazy val root = project
     git.remoteRepo := "git@github.com:scalalandio/chimney.git"
   )
 
-lazy val chimney = crossProject(JSPlatform, JVMPlatform)
-  .crossType(CrossType.Pure)
+lazy val chimney = project
   .dependsOn(protos % "test->test")
   .settings(
     moduleName := "chimney",
@@ -90,11 +89,7 @@ lazy val chimney = crossProject(JSPlatform, JVMPlatform)
   .settings(publishSettings: _*)
   .settings(dependencies: _*)
 
-lazy val chimneyJVM = chimney.jvm
-lazy val chimneyJS = chimney.js
-
-lazy val chimneyCats = crossProject(JSPlatform, JVMPlatform)
-  .crossType(CrossType.Pure)
+lazy val chimneyCats = project
   .dependsOn(chimney % "test->test;compile->compile")
   .settings(
     moduleName := "chimney-cats",
@@ -106,23 +101,15 @@ lazy val chimneyCats = crossProject(JSPlatform, JVMPlatform)
   .settings(settings: _*)
   .settings(publishSettings: _*)
   .settings(dependencies: _*)
-  .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % "2.2.0" % "provided")
+  .settings(libraryDependencies += "org.typelevel" %% "cats-core" % "2.2.0" % "provided")
 
-lazy val chimneyCatsJVM = chimneyCats.jvm
-lazy val chimneyCatsJS = chimneyCats.js
-
-lazy val protos = crossProject(JSPlatform, JVMPlatform)
-  .crossType(CrossType.Pure)
+lazy val protos = project
   .settings(
     moduleName := "chimney-protos",
     name := "chimney-protos"
   )
   .settings(settings: _*)
   .settings(noPublishSettings: _*)
-
-lazy val protosJVM = protos.jvm
-lazy val protosJS = protos.js
-
 
 lazy val publishSettings = Seq(
   organization := "io.scalaland",

@@ -1,6 +1,8 @@
 package io.scalaland.chimney
 
-import io.scalaland.chimney.examples.{colors1, colors2, foo}
+import io.scalaland.chimney.examples.palette.rgb
+import io.scalaland.chimney.examples.palette.rgbb
+import io.scalaland.chimney.examples.foo
 import utest._
 
 object IssuesSpec extends TestSuite {
@@ -453,28 +455,28 @@ object IssuesSpec extends TestSuite {
 
     "fix issue #185" - {
 
-      def blackIsRed(b: colors2.Black.type): colors1.Color =
-        colors1.Red
+      def blackIsRed(b: rgbb.Black.type): rgb.Color =
+        rgb.Red
 
-      (colors2.Black: colors2.Color)
-        .intoF[Option, colors1.Color]
+      (rgbb.Black: rgbb.Color)
+        .intoF[Option, rgb.Color]
         .withCoproductInstance(blackIsRed)
-        .transform ==> Some(colors1.Red)
+        .transform ==> Some(rgb.Red)
 
-      (colors2.Red: colors2.Color)
-        .intoF[Option, colors1.Color]
+      (rgbb.Red: rgbb.Color)
+        .intoF[Option, rgb.Color]
         .withCoproductInstance(blackIsRed)
-        .transform ==> Some(colors1.Red)
+        .transform ==> Some(rgb.Red)
 
-      (colors2.Green: colors2.Color)
-        .intoF[Option, colors1.Color]
+      (rgbb.Green: rgbb.Color)
+        .intoF[Option, rgb.Color]
         .withCoproductInstance(blackIsRed)
-        .transform ==> Some(colors1.Green)
+        .transform ==> Some(rgb.Green)
 
-      (colors2.Blue: colors2.Color)
-        .intoF[Option, colors1.Color]
+      (rgbb.Blue: rgbb.Color)
+        .intoF[Option, rgb.Color]
         .withCoproductInstance(blackIsRed)
-        .transform ==> Some(colors1.Blue)
+        .transform ==> Some(rgb.Blue)
     }
 
     "fix issue #182" - {
