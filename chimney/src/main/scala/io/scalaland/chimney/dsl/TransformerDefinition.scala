@@ -115,6 +115,20 @@ final class TransformerDefinition[From, To, C <: TransformerCfg, Flags <: Transf
   def withCoproductInstance[Inst](f: Inst => To): TransformerDefinition[From, To, _ <: TransformerCfg, Flags] =
     macro TransformerDefinitionWhiteboxMacros.withCoproductInstanceImpl[From, To, Inst, C]
 
+  /** Map instance `from` of a coproduct `From` (expressed as enum) to an instance of a coproduct `To`
+    *
+    * By default if mapping one coproduct in `From` into another coproduct in `To` derivation
+    * expects that coproducts to have matching names of its components, and for every component
+    * in `To` field's type there is matching component in `From` type. If some component is missing
+    * it fails compilation unless provided replacement with this operation.
+    *
+    * @param from co-product instance from a source domain
+    * @param to co-product instance from a target domain
+    * @return [[io.scalaland.chimney.dsl.TransformerDefinition]]
+    */
+  def withEnumValue(from: From, to: => To): TransformerDefinition[From, To, _ <: TransformerCfg, Flags] =
+    macro TransformerDefinitionWhiteboxMacros.withCoproductInstanceImpl2[From, To, C]
+
   /** Use `f` to calculate the (missing) wrapped coproduct instance when mapping one coproduct into another
     *
     * By default if mapping one coproduct in `From` into another coproduct in `To` derivation

@@ -103,14 +103,29 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
     val To = weakTypeOf[To]
     val Inst = weakTypeOf[Inst]
     val (instType, instSymbol) = if (Inst.typeSymbol.isJavaEnum) {
+      val deprecation = "Deprecated! Use `withEnumValue` to transform Java enum or Scala Enumeration".stripMargin
       val Function(List(ValDef(_, _, lhs: TypeTree, _)), _) = f
+      // this Java enum support implementation is incomplete and fragile
+      // TODO remove after some grace period
       lhs.original match {
         // java enum value in Scala 2.13
-        case SingletonTypeTree(Literal(Constant(t: TermSymbol))) => t.typeInSealedParent(Inst) -> t
+        case SingletonTypeTree(Literal(Constant(t: TermSymbol))) =>
+          c.warning(c.enclosingPosition, deprecation)
+          t.coproductType(Inst) -> t
         // java enum value in Scala 2.12
         case SingletonTypeTree(Select(t, n)) if t.isTerm =>
-          Inst.companion.decls.filter(_.name == n).map(s => s.typeInSealedParent(Inst) -> s).head
-        case _ => Inst -> Inst.typeSymbol
+          c.warning(c.enclosingPosition, deprecation)
+          Inst.companion.decls.filter(_.name == n).map(s => s.coproductType(Inst) -> s).head
+        case _ =>
+          /*
+          this case is needed, when `withCoproductInstance` is used together with the complete function
+          t.withCoproductInstance[MyEnum] {
+            case MyEnum.A => ???
+            case MyEnum.B => ???
+            case _        => ???
+          }
+           */
+          Inst -> Inst.typeSymbol
       }
     } else {
       Inst -> Inst.typeSymbol
@@ -119,6 +134,29 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
     c.prefix.tree
       .addInstance(instSymbol.fullName.toString, To.typeSymbol.fullName.toString, f)
       .refineConfig(coproductInstanceT.applyTypeArgs(instType, To, weakTypeOf[C]))
+  }
+
+  def withCoproductInstanceImpl2[
+      From: WeakTypeTag,
+      To: WeakTypeTag,
+      C: WeakTypeTag
+  ](from: Tree, to: Tree): Tree = {
+    val From = weakTypeOf[From]
+    val To = weakTypeOf[To]
+    val (fromType, fromSym) = from match {
+      case JavaEnumSupport.Literal(tpe, sym)    => tpe -> sym
+      case EnumerationSupport.Literal(tpe, sym) => tpe -> sym
+      case _ =>
+        c.abort(
+          c.enclosingPosition,
+          s"The first argument must be a Java enum or Scala enumeration literal of type $From"
+        )
+    }
+    // `addInstance` machinery expects From => To, lift by-name parameter to function
+    val f = q"(_: $From) => $to"
+    c.prefix.tree
+      .addInstance(fromSym.fullName, To.typeSymbol.fullName, f)
+      .refineConfig(coproductInstanceT.applyTypeArgs(fromType, To, weakTypeOf[C]))
   }
 
   def withCoproductInstanceFImpl[

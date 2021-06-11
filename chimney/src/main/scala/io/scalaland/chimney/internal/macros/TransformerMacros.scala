@@ -591,23 +591,23 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
           case (canonicalName, instSymbols) =>
             instSymbols.map { instSymbol =>
               val instName = instSymbol.name.toString
-              val instTpe = instSymbol.typeInSealedParent(From)
+              val instTpe = instSymbol.coproductType(From)
+
+              // in simple scenarios left-hand side of the case expression is flat (`case _: $type` or `case $value`)
+              val flatPatternMatch: Tree =
+                (instSymbol, instTpe) match {
+                  case CaseClassPattern(patternMatch)  => patternMatch
+                  case CaseObjectPattern(patternMatch) => patternMatch
+                  case JavaEnumPattern(patternMatch)   => patternMatch
+                  case ScalaEnumPattern(patternMatch)  => patternMatch
+                  case _                               => c.abort(c.enclosingPosition, "BUG: Can't derive left-hand side of the case expression")
+                }
 
               resolveCoproductInstance(srcPrefixTree, instTpe, To, config)
                 .map { instanceTree =>
-                  Right(cq"_: $instTpe => $instanceTree")
+                  Right(cq"$flatPatternMatch => $instanceTree")
                 }
                 .getOrElse {
-                  // in simple scenarios left-hand side of the case expression is flat (`case _: $type` or `case $value`)
-                  val flatPatternMatch: Tree =
-                    (instSymbol, instTpe) match {
-                      case CaseClassPattern(patternMatch)  => patternMatch
-                      case CaseObjectPattern(patternMatch) => patternMatch
-                      case JavaEnumPattern(patternMatch)   => patternMatch
-                      case ScalaEnumPattern(patternMatch)  => patternMatch
-                      case _                               => c.abort(c.enclosingPosition, "BUG: Can't derive left-hand side of the case expression")
-                    }
-
                   toInstances.getOrElse(canonicalName, Nil) match {
                     case List(JavaEnum(symbol))  => Right(cq"$flatPatternMatch => $symbol")
                     case List(ScalaEnum(symbol)) => Right(cq"$flatPatternMatch => ${c.parse(symbol.fullName)}")
@@ -619,7 +619,7 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
                       val explodedPatternMatch = pq"$fn: $instTpe"
                       expandDestinationCaseClass(Ident(fn), config.rec)(
                         instTpe,
-                        symbol.typeInSealedParent(To)
+                        symbol.coproductType(To)
                       ).map { innerTransformerTree =>
                         cq"$explodedPatternMatch => ${innerTransformerTree.tree}"
                       }
@@ -1110,7 +1110,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
   object ScalaEnumPattern extends SymPatternExtractor {
     def doUnapply(sym: Symbol, typeInSealedParent: Type): Option[Tree] =
-      if (sym.typeSignature.isEnumeration) Some(pq"${c.parse(sym.fullName)}") else None
+      typeInSealedParent match {
+        case c.universe.ConstantType(Constant(_: String)) => Some(pq"${c.parse(sym.fullName)}")
+        case _                                            => None
+      }
   }
 
   object JavaEnumPattern extends SymPatternExtractor {
