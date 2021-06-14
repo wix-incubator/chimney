@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: coursier/cache-action@v6
-      - uses: olafurpg/setup-scala@v10
+      - uses: olafurpg/setup-scala@v12
         with:
           java-version: ${{ matrix.jvm }}
       - name: Clean, Check code formatting, compile, test, generate coverage report
