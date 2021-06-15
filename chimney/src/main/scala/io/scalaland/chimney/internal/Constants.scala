@@ -14,7 +14,13 @@ object Constants {
   //SDL @id
   val SdlIdAnnotationFullName = "com.wixpress.infra.sdl.api.id.id"
   val SdlIdGenerationTypeName = "IdGeneration"
-  val SdlIdGenerationManual = "Manual"
+  val SdlIdGenerationManualTypes = Set(
+    "Manual", //will be removed soon
+    "ManualUUID",
+    "ManualWithCustomLength",
+    "ManualWixDataCompatible"
+  )
+
   val SdlIdGenerationAuto = "Auto"
   val SdlMissingIdPlaceholderString = "ID_WILL_BE_GENERATED_BY_SDL"
   val SdlMissingIdPlaceholderUUID = "00000000-0000-0000-0000-000000000000"

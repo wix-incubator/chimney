@@ -112,34 +112,45 @@ object WixSpec extends TestSuite {
       import com.wixpress.infra.sdl.api.id._
       case class EntityDTO(id: Option[String])
 
-      "use placeholder if id is None (IdGeneration.Auto)" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
+      "IdGeneration.Auto" - {
+        case class Entity(@id(IdGeneration.Auto) id: String)
 
-        EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholderString)
-        EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholderString)
+        "use placeholder if id is None" - {
+          EntityDTO(None).transformInto[Entity] ==> Entity(SdlMissingIdPlaceholderString)
+          EntityDTO(None).into[Entity].transform ==> Entity(SdlMissingIdPlaceholderString)
+        }
+
+        "use provided value if id is Some" - {
+          val str = "some_value"
+          EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
+          EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
+        }
       }
 
-      "use provided value if id is Some (IdGeneration.Auto)" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
-        val str = "some_value"
+      "manual IdGeneration types" - {
+        case class Entity(@id(IdGeneration.Manual) id: String)
+        case class Entity2(@id(IdGeneration.ManualUUID) id: String)
+        case class Entity3(@id(IdGeneration.ManualWixDataCompatible) id: String)
+        case class Entity4(@id(IdGeneration.ManualWithCustomLength(10)) id: String)
 
-        EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
-        EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
-      }
+        "throw an exception if id is None" - {
+          intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity] }
+          intercept[SdlIdNotProvidedException] { EntityDTO(None).into[Entity].transform }
 
-      "throw an exception if id is None (IdGeneration.Manual)" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: String)
+          intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity2] }
+          intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity3] }
+          intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity4] }
+        }
 
-        intercept[SdlIdNotProvidedException] { EntityDTO(None).transformInto[Entity] }
-        intercept[SdlIdNotProvidedException] { EntityDTO(None).into[Entity].transform }
-      }
+        "use provided value if id is Some (manual IdGeneration types)" - {
+          val str = "some_value"
+          EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
+          EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
 
-      "use provided value if id is Some (IdGeneration.Manual)" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: String)
-        val str = "some_value"
-
-        EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
-        EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
+          EntityDTO(Some(str)).transformInto[Entity] ==> Entity2(str)
+          EntityDTO(Some(str)).transformInto[Entity] ==> Entity3(str)
+          EntityDTO(Some(str)).transformInto[Entity] ==> Entity4(str)
+        }
       }
 
       "use placeholder if id is None (default IdGeneration)" - {
@@ -150,7 +161,7 @@ object WixSpec extends TestSuite {
       }
 
       "fail compilation if id is None (some new IdGeneration type)" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.SomeNewIdGenerationType) id: String)
+        case class Entity(@id(IdGeneration.SomeNewIdGenerationType) id: String)
 
         compileError("EntityDTO(None).transformInto[Entity]")
           .check(
@@ -160,7 +171,7 @@ object WixSpec extends TestSuite {
       }
 
       "use custom transformer (withFieldComputed)" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String)
+        case class Entity(@id(IdGeneration.Auto) id: String)
         val customValue = "custom_placeholder_value"
 
         implicit val t: Transformer[EntityDTO, Entity] = Transformer
@@ -172,7 +183,7 @@ object WixSpec extends TestSuite {
       }
 
       "use expansion rules on custom transformer if there is no ID transformation rule" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: String, otherValue: String)
+        case class Entity(@id(IdGeneration.Auto) id: String, otherValue: String)
 
         implicit val t: Transformer[EntityDTO, Entity] = Transformer
           .define[EntityDTO, Entity]
@@ -183,7 +194,7 @@ object WixSpec extends TestSuite {
       }
 
       "support UUID placeholder" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: UUID)
+        case class Entity(@id(IdGeneration.Auto) id: UUID)
 
         implicit val t: Transformer[String, UUID] = str => UUID.fromString(str)
 
@@ -192,7 +203,7 @@ object WixSpec extends TestSuite {
       }
 
       "support UUID exception" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Manual) id: UUID)
+        case class Entity(@id(IdGeneration.Manual) id: UUID)
 
         implicit val t: Transformer[String, UUID] = str => UUID.fromString(str)
 
@@ -201,7 +212,7 @@ object WixSpec extends TestSuite {
       }
 
       "fail compilation if no UUID transformer in scope" - {
-        case class Entity(@id(UUIDCompatible, IdGeneration.Auto) id: UUID)
+        case class Entity(@id(IdGeneration.Auto) id: UUID)
 
         compileError("EntityDTO(None).transformInto[Entity]")
           .check(

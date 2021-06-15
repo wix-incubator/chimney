@@ -20,7 +20,7 @@ trait DerivationGuards {
     annotation.tree.tpe.typeSymbol.fullName == SdlIdAnnotationFullName
 
   def shouldThrowExOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean =
-    sdlIdAnnotationParamValues.contains(SdlIdGenerationManual)
+    sdlIdAnnotationParamValues.intersect(SdlIdGenerationManualTypes).nonEmpty
 
   def shouldUsePlaceholderOnMissingSdlId(sdlIdAnnotationParamValues: Set[String]): Boolean = {
     /* Annotation's default value in SDL is "Auto". However if @id() annotation is used instead of @id(IdGeneration.Auto),
