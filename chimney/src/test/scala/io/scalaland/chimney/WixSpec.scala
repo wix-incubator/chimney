@@ -147,9 +147,9 @@ object WixSpec extends TestSuite {
           EntityDTO(Some(str)).transformInto[Entity] ==> Entity(str)
           EntityDTO(Some(str)).into[Entity].transform ==> Entity(str)
 
-          EntityDTO(Some(str)).transformInto[Entity] ==> Entity2(str)
-          EntityDTO(Some(str)).transformInto[Entity] ==> Entity3(str)
-          EntityDTO(Some(str)).transformInto[Entity] ==> Entity4(str)
+          EntityDTO(Some(str)).transformInto[Entity2] ==> Entity2(str)
+          EntityDTO(Some(str)).transformInto[Entity3] ==> Entity3(str)
+          EntityDTO(Some(str)).transformInto[Entity4] ==> Entity4(str)
         }
       }
 
