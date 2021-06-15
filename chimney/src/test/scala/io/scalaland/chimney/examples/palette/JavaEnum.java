@@ -13,7 +13,7 @@ public interface JavaEnum {
         SalmonRed, SeawaveGreen, SkyBlue, JetBlack
     }
 
-    enum RGB {
+    enum RgbUpper {
         RED, GREEN, BLUE
     }
 }

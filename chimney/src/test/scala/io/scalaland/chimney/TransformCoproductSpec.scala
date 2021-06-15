@@ -103,11 +103,11 @@ object TransformCoproductSpec extends TestSuite {
     "from java enum" - {
       "to java enum" - {
         "derive" - {
-          val t = Transformer.derive[je.Rgb, je.RGB]
+          val t = Transformer.derive[je.Rgb, je.RgbUpper]
 
-          t.transform(je.Rgb.Red) ==> je.RGB.RED
-          t.transform(je.Rgb.Green) ==> je.RGB.GREEN
-          t.transform(je.Rgb.Blue) ==> je.RGB.BLUE
+          t.transform(je.Rgb.Red) ==> je.RgbUpper.RED
+          t.transform(je.Rgb.Green) ==> je.RgbUpper.GREEN
+          t.transform(je.Rgb.Blue) ==> je.RgbUpper.BLUE
         }
         "derive to smaller domain should FAIL" - {
           val t = Transformer
