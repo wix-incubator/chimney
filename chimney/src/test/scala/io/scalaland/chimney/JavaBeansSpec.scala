@@ -2,6 +2,7 @@ package io.scalaland.chimney
 
 import utest._
 import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.internal.utils.ErrInterpolator._
 
 object JavaBeansSpec extends TestSuite {
 
@@ -107,10 +108,10 @@ object JavaBeansSpec extends TestSuite {
           """)
           .check(
             "",
-            """flag: scala.Boolean - no accessor named flag in source type io.scalaland.chimney.CaseClassWithFlagMethod
-              |
-              |There are methods in io.scalaland.chimney.CaseClassWithFlagMethod that might be used as accessors for `flag` fields in io.scalaland.chimney.JavaBeanTarget. Consider using `.enableMethodAccessors`
-              |""".stripMargin
+            err"""flag: scala.Boolean - no accessor named flag in source type io.scalaland.chimney.CaseClassWithFlagMethod
+                 |
+                 |There are methods in io.scalaland.chimney.CaseClassWithFlagMethod that might be used as accessors for `flag` fields in io.scalaland.chimney.JavaBeanTarget. Consider using `.enableMethodAccessors`
+                 |""".stripMargin
           )
       }
 

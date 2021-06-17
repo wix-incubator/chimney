@@ -2,6 +2,7 @@ package io.scalaland.chimney.internal.macros
 
 import io.scalaland.chimney.internal._
 import io.scalaland.chimney.internal.utils.{DerivationGuards, EitherUtils, MacroUtils}
+import io.scalaland.chimney.internal.utils.ErrInterpolator._
 import Constants._
 
 import scala.reflect.macros.blackbox
@@ -111,12 +112,12 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
       case Left(derivationErrors) =>
         val errorMessage =
-          s"""Chimney can't derive transformation from $From to $To
-             |
-             |${DerivationError.printErrors(derivationErrors)}
-             |Consult $chimneyDocUrl for usage examples.
-             |
-             |""".stripMargin
+          err"""Chimney can't derive transformation from $From to $To
+               |
+               |${DerivationError.printErrors(derivationErrors)}
+               |Consult $chimneyDocUrl for usage examples.
+               |
+               |""".stripMargin
 
         c.abort(c.enclosingPosition, errorMessage)
     }
