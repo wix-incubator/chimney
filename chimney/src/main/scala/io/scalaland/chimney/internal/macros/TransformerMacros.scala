@@ -112,11 +112,10 @@ trait TransformerMacros extends TransformerConfigSupport with MappingMacros with
 
       case Left(derivationErrors) =>
         val errorMessage =
-          err"""Chimney can't derive transformation from $From to $To
-               |
-               |${DerivationError.printErrors(derivationErrors)}
-               |Consult $chimneyDocUrl for usage examples.
-               |
+          err"""> Chimney can't derive transformation from $From to $To
+               |>
+               |> ${DerivationError.printErrors(derivationErrors)}
+               |> Consult $chimneyDocUrl for usage examples.
                |""".stripMargin
 
         c.abort(c.enclosingPosition, errorMessage)
