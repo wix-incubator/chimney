@@ -149,11 +149,15 @@ class TransformerDefinitionWhiteboxMacros(val c: whitebox.Context) extends Macro
       case _ =>
         c.abort(
           c.enclosingPosition,
-          s"The first argument must be a Java enum or Scala enumeration literal of type $From"
+          s"""Incorrect use of method `withEnumValue`
+             |  - The first argument must be a literal of type `$From`
+             |  - Type `$From` must be a Java enum or Scala Enumeration
+             |""".stripMargin
         )
     }
     // `addInstance` machinery expects From => To, lift by-name parameter to function
-    val f = q"(_: $From) => $to"
+    val param = q"val _: $From"
+    val f = q"($param => $to)"
     c.prefix.tree
       .addInstance(fromSym.fullName, To.typeSymbol.fullName, f)
       .refineConfig(coproductInstanceT.applyTypeArgs(fromType, To, weakTypeOf[C]))

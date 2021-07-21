@@ -404,8 +404,8 @@ trait MacroUtils extends CompanionUtils {
 
     object Literal {
       def unapply(t: Tree): Option[(Type, Symbol)] = t match {
-        case s: Select => Some(CoproductType(t) -> s.symbol)
-        case _         => None
+        case s: Select if s.symbol.typeSignature.isEnumeration => Some(CoproductType(t) -> s.symbol)
+        case _                                                 => None
       }
     }
 
@@ -450,8 +450,9 @@ trait MacroUtils extends CompanionUtils {
   object JavaEnumSupport {
     object Literal {
       def unapply(t: Tree): Option[(Type, Symbol)] = t match {
-        case c.universe.Literal(const @ Constant(sym: TermSymbol)) => Some(CoproductType(const) -> sym)
-        case _                                                     => None
+        case c.universe.Literal(const @ Constant(sym: TermSymbol)) if sym.isJavaEnum =>
+          Some(CoproductType(const) -> sym)
+        case _ => None
       }
     }
 
